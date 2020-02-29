@@ -22,7 +22,7 @@ To build the `avra-rs` you can use `cargo build` and `cargo install`, or you can
 ## Usage
 
 To compile source file you need to run `avra-rs` with argument `-s` for describe path to
-source and optionally you can provide output path by `-o`. Other options is not supported.
+source and optionally you can provide output path by `-o`. Other options aren't supported.
 Detail information of assembler will be added in near future.
 
 ## Change log
