@@ -1,8 +1,10 @@
 //! Contains zero, first and second pass builder of AVRA-rs
 
+pub mod pass0;
 pub mod pass1;
 pub mod pass2;
 
+use crate::builder::pass0::build_pass_0 as pass0;
 use crate::builder::pass1::build_pass_1 as pass1;
 use crate::builder::pass2::build_pass_2 as pass2;
 use crate::parser::{parse_file, parse_str, Paths};
@@ -19,7 +21,9 @@ pub struct BuildResult {
 pub fn build_str(source: &str) -> Result<BuildResult, Error> {
     let parsed = parse_str(source)?;
 
-    let passed_1 = pass1(parsed)?;
+    let passed_0 = pass0(parsed)?;
+
+    let passed_1 = pass1(passed_0)?;
 
     let passed_2 = pass2(passed_1)?;
 
@@ -32,7 +36,9 @@ pub fn build_str(source: &str) -> Result<BuildResult, Error> {
 pub fn build_file(path: PathBuf, paths: Paths) -> Result<BuildResult, Error> {
     let parsed = parse_file(path, paths)?;
 
-    let passed_1 = pass1(parsed)?;
+    let passed_0 = pass0(parsed)?;
+
+    let passed_1 = pass1(passed_0)?;
 
     let passed_2 = pass2(passed_1)?;
 

@@ -161,12 +161,13 @@ fn pass_2_internal(segment: &Segment, e_p: &ExecutionParameters) -> Result<Vec<u
 #[cfg(test)]
 mod builder_tests {
     use super::*;
+    use crate::builder::pass0::{build_pass_0, BuildResultPass0};
     use crate::builder::pass1::build_pass_1;
     use crate::parser::{parse_str, ParseResult};
 
     #[test]
     fn check_empty() {
-        let build_result = build_pass_2(build_pass_1(ParseResult::new()).unwrap());
+        let build_result = build_pass_2(build_pass_1(BuildResultPass0::new()).unwrap());
         assert_eq!(
             build_result.unwrap(),
             BuildResultPass2 {
@@ -188,7 +189,9 @@ mod builder_tests {
         clh
         ",
         );
-        let build_result = build_pass_2(build_pass_1(parse_result.unwrap()).unwrap());
+        let post_parse_result = build_pass_0(parse_result.unwrap());
+
+        let build_result = build_pass_2(build_pass_1(post_parse_result.unwrap()).unwrap());
         assert_eq!(
             build_result.unwrap(),
             BuildResultPass2 {
@@ -210,7 +213,9 @@ mod builder_tests {
         pop r1
         ",
         );
-        let build_result = build_pass_2(build_pass_1(parse_result.unwrap()).unwrap());
+        let post_parse_result = build_pass_0(parse_result.unwrap());
+
+        let build_result = build_pass_2(build_pass_1(post_parse_result.unwrap()).unwrap());
         assert_eq!(
             build_result.unwrap(),
             BuildResultPass2 {
@@ -230,7 +235,9 @@ exit:
         rjmp error
         ",
         );
-        let build_result = build_pass_2(build_pass_1(parse_result.unwrap()).unwrap());
+        let post_parse_result = build_pass_0(parse_result.unwrap());
+
+        let build_result = build_pass_2(build_pass_1(post_parse_result.unwrap()).unwrap());
         assert_eq!(
             build_result.unwrap(),
             BuildResultPass2 {
@@ -253,7 +260,9 @@ exit:
 data:
         ",
         );
-        let build_result = build_pass_2(build_pass_1(parse_result.unwrap()).unwrap());
+        let post_parse_result = build_pass_0(parse_result.unwrap());
+
+        let build_result = build_pass_2(build_pass_1(post_parse_result.unwrap()).unwrap());
         assert_eq!(
             build_result.unwrap(),
             BuildResultPass2 {
@@ -272,7 +281,9 @@ data:
         st X+, r19
         ",
         );
-        let build_result = build_pass_2(build_pass_1(parse_result.unwrap()).unwrap());
+        let post_parse_result = build_pass_0(parse_result.unwrap());
+
+        let build_result = build_pass_2(build_pass_1(post_parse_result.unwrap()).unwrap());
         assert_eq!(
             build_result.unwrap(),
             BuildResultPass2 {
@@ -289,7 +300,9 @@ data:
         std Z+6, r24
         ",
         );
-        let build_result = build_pass_2(build_pass_1(parse_result.unwrap()).unwrap());
+        let post_parse_result = build_pass_0(parse_result.unwrap());
+
+        let build_result = build_pass_2(build_pass_1(post_parse_result.unwrap()).unwrap());
         assert_eq!(
             build_result.unwrap(),
             BuildResultPass2 {
@@ -310,7 +323,9 @@ data:
 data:   .db 15, 26, \"Hello, World\", end  
         ",
         );
-        let build_result = build_pass_2(build_pass_1(parse_result.unwrap()).unwrap());
+        let post_parse_result = build_pass_0(parse_result.unwrap());
+
+        let build_result = build_pass_2(build_pass_1(post_parse_result.unwrap()).unwrap());
         assert_eq!(
             build_result.unwrap(),
             BuildResultPass2 {
@@ -332,7 +347,9 @@ data_w:
         .dw 0xff44, end, 0xda4e
         ",
         );
-        let build_result = build_pass_2(build_pass_1(parse_result.unwrap()).unwrap());
+        let post_parse_result = build_pass_0(parse_result.unwrap());
+
+        let build_result = build_pass_2(build_pass_1(post_parse_result.unwrap()).unwrap());
         assert_eq!(
             build_result.unwrap(),
             BuildResultPass2 {
@@ -356,7 +373,9 @@ data_w:
         clh
         ",
         );
-        let build_result = build_pass_2(build_pass_1(parse_result.unwrap()).unwrap());
+        let post_parse_result = build_pass_0(parse_result.unwrap());
+
+        let build_result = build_pass_2(build_pass_1(post_parse_result.unwrap()).unwrap());
         assert_eq!(
             build_result.unwrap(),
             BuildResultPass2 {
@@ -379,7 +398,9 @@ data_w:
         .dw 0xff44, end, 0xda4e
         ",
         );
-        let build_result = build_pass_2(build_pass_1(parse_result.unwrap()).unwrap());
+        let post_parse_result = build_pass_0(parse_result.unwrap());
+
+        let build_result = build_pass_2(build_pass_1(post_parse_result.unwrap()).unwrap());
         assert_eq!(
             build_result.unwrap(),
             BuildResultPass2 {
@@ -405,7 +426,9 @@ counter:
         lds r17, counter+1
         ",
         );
-        let build_result = build_pass_2(build_pass_1(parse_result.unwrap()).unwrap());
+        let post_parse_result = build_pass_0(parse_result.unwrap());
+
+        let build_result = build_pass_2(build_pass_1(post_parse_result.unwrap()).unwrap());
         assert_eq!(
             build_result.unwrap(),
             BuildResultPass2 {

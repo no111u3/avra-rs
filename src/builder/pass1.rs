@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 
+use crate::builder::pass0::BuildResultPass0;
 use crate::device::Device;
 use crate::directive::{Directive, DirectiveOps, Operand};
 use crate::expr::Expr;
@@ -21,7 +22,7 @@ pub struct BuildResultPass1 {
     pub device: Device,
 }
 
-pub fn build_pass_1(parsed: ParseResult) -> Result<BuildResultPass1, Error> {
+pub fn build_pass_1(parsed: BuildResultPass0) -> Result<BuildResultPass1, Error> {
     let device = parsed.device.unwrap_or(Device::new(0));
     let mut segments = vec![];
     let mut labels = HashMap::new();
@@ -57,10 +58,10 @@ pub fn build_pass_1(parsed: ParseResult) -> Result<BuildResultPass1, Error> {
     }
 
     Ok(BuildResultPass1 {
-        segments: segments,
+        segments,
         equs: parsed.equs,
-        labels: labels,
-        device: device,
+        labels,
+        device,
     })
 }
 
@@ -182,6 +183,7 @@ fn pass_1_internal(
 #[cfg(test)]
 mod builder_tests {
     use super::*;
+    use crate::builder::pass0::build_pass_0;
     use crate::device::Device;
     use crate::directive::Operand;
     use crate::instruction::{operation::Operation, register::Reg8, InstructionOps};
@@ -190,7 +192,7 @@ mod builder_tests {
 
     #[test]
     fn check_empty() {
-        let build_result = build_pass_1(ParseResult::new());
+        let build_result = build_pass_1(BuildResultPass0::new());
         assert_eq!(
             build_result.unwrap(),
             BuildResultPass1 {
@@ -204,7 +206,7 @@ mod builder_tests {
 
     #[test]
     fn check_labels() {
-        let build_result = build_pass_1(ParseResult {
+        let build_result = build_pass_1(BuildResultPass0 {
             segments: vec![Segment {
                 items: vec![(
                     CodePoint {
@@ -237,7 +239,7 @@ mod builder_tests {
 
     #[test]
     fn check_segments() {
-        let build_result = build_pass_1(ParseResult {
+        let build_result = build_pass_1(BuildResultPass0 {
             segments: vec![
                 Segment {
                     items: vec![(
@@ -293,7 +295,9 @@ mod builder_tests {
 
         let parse_result = parse_str("good_point:\n.cseg\n.org 0x20\ngood_point2:");
 
-        let build_result = build_pass_1(parse_result.unwrap());
+        let post_parse_result = build_pass_0(parse_result.unwrap());
+
+        let build_result = build_pass_1(post_parse_result.unwrap());
 
         assert_eq!(
             build_result.unwrap(),
@@ -321,7 +325,9 @@ mod builder_tests {
 
         let parse_result = parse_str("good_point:\n.dseg\ngood_point2:\n.cseg\ngood_point3:");
 
-        let build_result = build_pass_1(parse_result.unwrap());
+        let post_parse_result = build_pass_0(parse_result.unwrap());
+
+        let build_result = build_pass_1(post_parse_result.unwrap());
 
         assert_eq!(
             build_result.unwrap(),
@@ -367,7 +373,9 @@ m1:
         ldi r18, data_w
         ",
         );
-        let build_result = build_pass_1(parse_result.unwrap());
+        let post_parse_result = build_pass_0(parse_result.unwrap());
+
+        let build_result = build_pass_1(post_parse_result.unwrap());
 
         assert_eq!(
             build_result.unwrap(),
@@ -467,7 +475,9 @@ m1:
         ldi r18, data_w
         ",
         );
-        let build_result = build_pass_1(parse_result.unwrap());
+        let post_parse_result = build_pass_0(parse_result.unwrap());
+
+        let build_result = build_pass_1(post_parse_result.unwrap());
 
         assert_eq!(
             build_result.unwrap(),
@@ -567,7 +577,9 @@ m1:
 
         let parse_result = parse_str(".dseg\ndata: .byte 1\ncounter: .byte 2");
 
-        let build_result = build_pass_1(parse_result.unwrap());
+        let post_parse_result = build_pass_0(parse_result.unwrap());
+
+        let build_result = build_pass_1(post_parse_result.unwrap());
 
         assert_eq!(
             build_result.unwrap(),
