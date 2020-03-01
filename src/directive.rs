@@ -5,7 +5,7 @@ use strum_macros::{Display, EnumString};
 use crate::device::{Device, DEVICES};
 use crate::expr::{Expr, GetIdent};
 use crate::parser::{
-    parse_file_internal, CodePoint, Item, ParseResult, Paths, Segment, SegmentType, NextItem,
+    parse_file_internal, CodePoint, Item, NextItem, ParseResult, Paths, Segment, SegmentType,
 };
 
 use failure::{bail, Error};
@@ -57,7 +57,7 @@ pub enum Directive {
     Set,
     /// Define a preprocessor macro
     Define,
-    /// Conditional assembly - alternate branches (unsupported)
+    /// Conditional assembly - alternate branches (partially)
     Else,
     Elif,
     /// Conditional assembly - end conditional block
@@ -81,7 +81,7 @@ pub enum Directive {
     /// Set up/down overlapping section (unsupported)
     Overlap,
     Nooverlap,
-    /// Preprocessor pramas
+    /// Preprocessor pragmas (partially)
     Pragma,
 
     /// For extend and macross support
@@ -208,10 +208,20 @@ impl Directive {
                             }
                         }
                     } else {
-                        bail!("wrong format for .{}, expected: {} in {}", self, opts, point,);
+                        bail!(
+                            "wrong format for .{}, expected: {} in {}",
+                            self,
+                            opts,
+                            point,
+                        );
                     }
                 } else {
-                    bail!("wrong format for .{}, expected: {} in {}", self, opts, point,);
+                    bail!(
+                        "wrong format for .{}, expected: {} in {}",
+                        self,
+                        opts,
+                        point,
+                    );
                 }
             }
             Directive::Define => {
@@ -873,7 +883,7 @@ mod parser_tests {
     }
 
     #[test]
-    fn check_directive_ifdef_ifndef_define() {
+    fn check_directive_ifdef_ifndef_else_define() {
         let parse_result = parse_str(".define T\n.ifndef T\n.endif");
         assert_eq!(
             parse_result.unwrap(),
@@ -925,6 +935,17 @@ mod parser_tests {
                 segments: vec![],
                 equs: HashMap::new(),
                 defines: hashmap! { "X".to_string() => Expr::Const(0)},
+                device: Some(Device::new(0)),
+            }
+        );
+
+        let parse_result = parse_str(".ifdef T\n.define X\n.else\n.define Y\n.endif");
+        assert_eq!(
+            parse_result.unwrap(),
+            ParseResult {
+                segments: vec![],
+                equs: HashMap::new(),
+                defines: hashmap! { "Y".to_string() => Expr::Const(0)},
                 device: Some(Device::new(0)),
             }
         );

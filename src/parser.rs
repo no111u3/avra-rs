@@ -14,8 +14,8 @@ use crate::instruction::{operation::Operation, InstructionOps};
 
 use failure::{bail, Error};
 use maplit::btreeset;
-use strum_macros::Display;
 use std::iter::Iterator;
+use strum_macros::Display;
 
 pub type Paths = BTreeSet<PathBuf>;
 
@@ -178,7 +178,10 @@ pub enum NextItem {
     EndFile,
 }
 
-fn skip<'a>(iter: &mut dyn Iterator<Item = (usize, &'a str)>, ni: NextItem) -> Option<(usize, &'a str)> {
+fn skip<'a>(
+    iter: &mut dyn Iterator<Item = (usize, &'a str)>,
+    ni: NextItem,
+) -> Option<(usize, &'a str)> {
     let mut scoup_count = 0;
     match ni {
         NextItem::NewLine => iter.next(),
@@ -189,19 +192,26 @@ fn skip<'a>(iter: &mut dyn Iterator<Item = (usize, &'a str)>, ni: NextItem) -> O
                 if let Ok(item) = document::line(line) {
                     if let Document::DirectiveLine(_, directive, _) = item {
                         if other == NextItem::EndIf {
-                            if directive == Directive::If || directive == Directive::Ifdef || directive == Directive::Ifndef {
+                            if directive == Directive::If
+                                || directive == Directive::Ifdef
+                                || directive == Directive::Ifndef
+                            {
                                 scoup_count += 1;
                             }
-                            if directive == Directive::Endif {
+                            if directive == Directive::Endif || directive == Directive::Else {
                                 if scoup_count == 0 {
                                     ret = iter.next();
                                     break;
                                 } else {
-                                    scoup_count -= 1;
+                                    if directive == Directive::Endif {
+                                        scoup_count -= 1;
+                                    }
                                 }
                             }
                         }
-                        if other == NextItem::EndMacro && directive == Directive::Endmacro || directive == Directive::Endm {
+                        if other == NextItem::EndMacro && directive == Directive::Endmacro
+                            || directive == Directive::Endm
+                        {
                             ret = iter.next();
                             break;
                         }
