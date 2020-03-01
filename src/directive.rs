@@ -37,7 +37,7 @@ pub enum Directive {
     Equ,
     /// EEPROM segment
     Eseg,
-    /// Exit from file (unsupported)
+    /// Exit from file
     Exit,
     /// Read source from another file
     Include,
@@ -55,16 +55,16 @@ pub enum Directive {
     Org,
     /// Set a symbol to an expression (unsupported)
     Set,
-    /// Define a preprocessor macro (unsupported)
+    /// Define a preprocessor macro
     Define,
     /// Conditional assembly - alternate branches (unsupported)
     Else,
     Elif,
-    /// Conditional assembly - end conditional block (unsupported)
+    /// Conditional assembly - end conditional block
     Endif,
     /// Outputs an error message (unsupported)
     Error,
-    /// Conditional assembly - begin of conditional block (unsupported)
+    /// Conditional assembly - begin of conditional block (partially)
     If,
     Ifdef,
     Ifndef,
@@ -226,6 +226,9 @@ impl Directive {
                 }
             }
             Directive::Endif => {}
+            Directive::Exit => {
+                next_item = NextItem::EndFile;
+            }
             Directive::Custom(name) => bail!("unsupported custom directive {}, {}", name, point),
             _ => bail!(
                 "Unsupported directive {} in {} segment, {}",
@@ -922,6 +925,20 @@ mod parser_tests {
                 segments: vec![],
                 equs: HashMap::new(),
                 defines: hashmap! { "X".to_string() => Expr::Const(0)},
+                device: Some(Device::new(0)),
+            }
+        );
+    }
+
+    #[test]
+    fn check_directive_exit() {
+        let parse_result = parse_str(".define Y\n.exit\n.define X");
+        assert_eq!(
+            parse_result.unwrap(),
+            ParseResult {
+                segments: vec![],
+                equs: HashMap::new(),
+                defines: hashmap! { "Y".to_string() => Expr::Const(0) },
                 device: Some(Device::new(0)),
             }
         );
