@@ -235,6 +235,9 @@ impl Directive {
                     bail!("wrong format for .define, expected: {} in {}", opts, point,);
                 }
             }
+            Directive::Else => {
+                next_item = NextItem::EndIf;
+            }
             Directive::Endif => {}
             Directive::Exit => {
                 next_item = NextItem::EndFile;
@@ -946,6 +949,17 @@ mod parser_tests {
                 segments: vec![],
                 equs: HashMap::new(),
                 defines: hashmap! { "Y".to_string() => Expr::Const(0)},
+                device: Some(Device::new(0)),
+            }
+        );
+
+        let parse_result = parse_str(".ifndef T\n.define X\n.else\n.define Y\n.endif");
+        assert_eq!(
+            parse_result.unwrap(),
+            ParseResult {
+                segments: vec![],
+                equs: HashMap::new(),
+                defines: hashmap! { "X".to_string() => Expr::Const(0)},
                 device: Some(Device::new(0)),
             }
         );
