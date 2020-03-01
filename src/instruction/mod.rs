@@ -453,7 +453,7 @@ mod parser_tests {
         assert_eq!(document::op_list(""), Ok(vec![]));
 
         assert_eq!(
-            document::op_list("  a\t, b,c  ,\td"),
+            document::op_list("a\t, b,c  ,\td"),
             Ok(vec![
                 InstructionOps::E(Expr::Ident("a".to_string())),
                 InstructionOps::E(Expr::Ident("b".to_string())),

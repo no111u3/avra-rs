@@ -260,16 +260,6 @@ mod parser_tests {
             Ok(Expr::Ident("Test_string_of_ident".to_string()))
         );
 
-        assert_eq!(
-            document::e_ident("  \t Test_string_of_ident"),
-            Ok(Expr::Ident("Test_string_of_ident".to_string()))
-        );
-
-        assert_eq!(
-            document::e_ident("  \t Test_string_of_ident\t   \t"),
-            Ok(Expr::Ident("Test_string_of_ident".to_string()))
-        );
-
         assert!(document::e_ident("4").is_err());
     }
 
@@ -279,9 +269,9 @@ mod parser_tests {
 
         assert_eq!(document::e_const("0x3519"), Ok(Expr::Const(0x3519)));
 
-        assert_eq!(document::e_const("$4a "), Ok(Expr::Const(0x4a)));
+        assert_eq!(document::e_const("$4a"), Ok(Expr::Const(0x4a)));
 
-        assert_eq!(document::e_const("\t03516"), Ok(Expr::Const(0o3516)));
+        assert_eq!(document::e_const("03516"), Ok(Expr::Const(0o3516)));
 
         assert_eq!(document::e_const("0b110100"), Ok(Expr::Const(0b110100)));
 
@@ -303,7 +293,7 @@ mod parser_tests {
             Ok(Expr::Ident("Test_string_of_ident".to_string()))
         );
 
-        assert_eq!(document::expr("\t03516"), Ok(Expr::Const(0o3516)));
+        assert_eq!(document::expr("03516"), Ok(Expr::Const(0o3516)));
 
         assert_eq!(document::expr("' '"), Ok(Expr::Const(0x20)));
 

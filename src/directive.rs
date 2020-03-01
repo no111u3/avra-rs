@@ -108,6 +108,7 @@ impl Directive {
             | Directive::Set
             | Directive::Def
             | Directive::Undef
+            | Directive::Pragma
             | Directive::Byte => {
                 curr_segment
                     .items
@@ -357,7 +358,7 @@ mod parser_tests {
         );
 
         assert_eq!(
-            document::directive_ops("  a\t, b,c  ,\td"),
+            document::directive_ops("a\t, b,c  ,\td"),
             Ok(DirectiveOps::OpList(vec![
                 Operand::E(Expr::Ident("a".to_string())),
                 Operand::E(Expr::Ident("b".to_string())),
@@ -368,6 +369,16 @@ mod parser_tests {
 
         assert_eq!(
             document::directive_ops("a,b,c,d"),
+            Ok(DirectiveOps::OpList(vec![
+                Operand::E(Expr::Ident("a".to_string())),
+                Operand::E(Expr::Ident("b".to_string())),
+                Operand::E(Expr::Ident("c".to_string())),
+                Operand::E(Expr::Ident("d".to_string()))
+            ]))
+        );
+
+        assert_eq!(
+            document::directive_ops("a b c d"),
             Ok(DirectiveOps::OpList(vec![
                 Operand::E(Expr::Ident("a".to_string())),
                 Operand::E(Expr::Ident("b".to_string())),

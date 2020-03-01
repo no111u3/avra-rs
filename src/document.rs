@@ -57,50 +57,50 @@ parser! {
 
         // expression ident
         pub rule e_ident() -> Expr
-            = space() i:$(['a'..='z' | 'A'..='Z' | '_' ]['0'..='9' | 'a'..='z' | 'A'..='Z' | '_' ]*) space() {
+            = i:$(['a'..='z' | 'A'..='Z' | '_' ]['0'..='9' | 'a'..='z' | 'A'..='Z' | '_' ]*) {
             Expr::Ident(i.parse().unwrap())
         }
 
         // expression const
         pub rule e_const() -> Expr
-            = space() "$" n:$(['0'..='9' | 'A'..='F' | 'a'..='f']+) space() { Expr::Const(i64::from_str_radix(n, 16).unwrap()) }
-            / space() "0x" n:$(['0'..='9' | 'A'..='F' | 'a'..='f']+) space() { Expr::Const(i64::from_str_radix(n, 16).unwrap()) }
-            / space() "0b" n:$(['0'..='1']+) space() { Expr::Const(i64::from_str_radix(n, 2).unwrap()) }
-            / space() "0" n:$(['0'..='7']+) space() { Expr::Const(i64::from_str_radix(n, 8).unwrap()) }
-            / space() n:$(['0'..='9']+) space() { Expr::Const(n.parse().unwrap()) }
+            = "$" n:$(['0'..='9' | 'A'..='F' | 'a'..='f']+) { Expr::Const(i64::from_str_radix(n, 16).unwrap()) }
+            / "0x" n:$(['0'..='9' | 'A'..='F' | 'a'..='f']+) { Expr::Const(i64::from_str_radix(n, 16).unwrap()) }
+            / "0b" n:$(['0'..='1']+) { Expr::Const(i64::from_str_radix(n, 2).unwrap()) }
+            / "0" n:$(['0'..='7']+) { Expr::Const(i64::from_str_radix(n, 8).unwrap()) }
+            / n:$(['0'..='9']+) { Expr::Const(n.parse().unwrap()) }
 
         // expression
         pub rule expr() -> Expr
             = precedence! {
             // precedence 6
-            x:(@) "|" y:@ { Expr::Binary(Box::new(BinaryExpr{left: x, operator: BinaryOperator::Or, right: y})) }
+            x:(@) space() "|" space() y:@ { Expr::Binary(Box::new(BinaryExpr{left: x, operator: BinaryOperator::Or, right: y})) }
             --
             // precedence 7
-            x:(@) "^" y:@ { Expr::Binary(Box::new(BinaryExpr{left: x, operator: BinaryOperator::Xor, right: y})) }
+            x:(@) space() "^" space() y:@ { Expr::Binary(Box::new(BinaryExpr{left: x, operator: BinaryOperator::Xor, right: y})) }
             --
             // precedence 8
-            x:(@) "&" y:@ { Expr::Binary(Box::new(BinaryExpr{left: x, operator: BinaryOperator::And, right: y})) }
+            x:(@) space() "&" space() y:@ { Expr::Binary(Box::new(BinaryExpr{left: x, operator: BinaryOperator::And, right: y})) }
             --
             // precedence 11
-            x:(@) "<<" y:@ { Expr::Binary(Box::new(BinaryExpr{left: x, operator: BinaryOperator::ShiftLeft, right: y})) }
-            x:(@) ">>" y:@ { Expr::Binary(Box::new(BinaryExpr{left: x, operator: BinaryOperator::ShiftRight, right: y})) }
+            x:(@) space() "<<" space() y:@ { Expr::Binary(Box::new(BinaryExpr{left: x, operator: BinaryOperator::ShiftLeft, right: y})) }
+            x:(@) space() ">>" space() y:@ { Expr::Binary(Box::new(BinaryExpr{left: x, operator: BinaryOperator::ShiftRight, right: y})) }
             --
             // precedence 12
-            x:(@) "+" y:@ { Expr::Binary(Box::new(BinaryExpr{left: x, operator: BinaryOperator::Add, right: y})) }
-            x:(@) "-" y:@ { Expr::Binary(Box::new(BinaryExpr{left: x, operator: BinaryOperator::Sub, right: y})) }
+            x:(@) space() "+" space() y:@ { Expr::Binary(Box::new(BinaryExpr{left: x, operator: BinaryOperator::Add, right: y})) }
+            x:(@) space() "-" space() y:@ { Expr::Binary(Box::new(BinaryExpr{left: x, operator: BinaryOperator::Sub, right: y})) }
             "~" v:@ { Expr::Unary(Box::new(UnaryExpr{operator: UnaryOperator::Not, expr: v})) }
             --
             // precedence 13
-            x:(@) "*" y:@ { Expr::Binary(Box::new(BinaryExpr{left: x, operator: BinaryOperator::Mul, right: y})) }
-            x:(@) "/" y:@ { Expr::Binary(Box::new(BinaryExpr{left: x, operator: BinaryOperator::Div, right: y})) }
-            x:(@) "%" y:@ { Expr::Binary(Box::new(BinaryExpr{left: x, operator: BinaryOperator::Rem, right: y})) }
+            x:(@) space() "*" space() y:@ { Expr::Binary(Box::new(BinaryExpr{left: x, operator: BinaryOperator::Mul, right: y})) }
+            x:(@) space() "/" space() y:@ { Expr::Binary(Box::new(BinaryExpr{left: x, operator: BinaryOperator::Div, right: y})) }
+            x:(@) space() "%" space() y:@ { Expr::Binary(Box::new(BinaryExpr{left: x, operator: BinaryOperator::Rem, right: y})) }
             --
             // precedence 14
             "-" v:@ { Expr::Unary(Box::new(UnaryExpr{operator: UnaryOperator::Minus, expr: v})) }
             --
             // precedence 15
-            n:e_ident() space() "(" args:expr() ")" { Expr::Func(Box::new(n), Box::new(args)) }
-            space() "(" be:expr() ")" space() { be }
+            n:e_ident() space() "(" space() args:expr() space() ")" { Expr::Func(Box::new(n), Box::new(args)) }
+            "(" space() be:expr() space() ")" { be }
             c:e_const() { c }
             c:ch() { Expr::Const(c as i64) }
             i:e_ident() { i }
@@ -154,8 +154,8 @@ parser! {
             / r:reg16() { IndexOps::None(r) }
 
         pub rule instruction_ops() -> InstructionOps
-            = space() ind:index_ops() space() { InstructionOps::Index(ind) }
-            / space() r8:reg8() space() { InstructionOps::R8(r8) }
+            = ind:index_ops() { InstructionOps::Index(ind) }
+            / r8:reg8() { InstructionOps::R8(r8) }
             / e:expr() { InstructionOps::E(e) }
 
         pub rule standard_directive() -> Result<Directive, strum::ParseError>
@@ -170,30 +170,52 @@ parser! {
             }
         }
 
+        rule delimiter()
+            = space() "," space()
+
         // operands list
         pub rule op_list() -> Vec<InstructionOps>
-            = instruction_ops() ** ","
+            = instruction_ops() ** delimiter()
 
         // comment
-        pub rule comment() = ";" [_]* new_line()
+        rule asm_comment() = ";" [_]* new_line()
+
+        rule c_comment() = "/*" (!("*/" / "\n" / "\r") [_])* "*/" new_line()
+
+        rule c_another_comment() = "//" [_]* new_line()
+
+        pub rule comment()
+            = asm_comment()
+            / c_comment()
+            / c_another_comment()
 
         // instruction line
         pub rule instruction_line() -> Document
-            = l:label()? space() o:operation() space() ol:op_list() comment()? {Document::CodeLine(Box::new(l), o, ol)}
+            = l:label()? space() o:operation() space() ol:op_list() space() comment()? {Document::CodeLine(Box::new(l), o, ol)}
 
         // directive operand
         pub rule directive_op() ->  Operand
             = e:expr() { Operand::E(e) }
-            / space() s:string() space() { Operand::S(s) }
+            / s:string() { Operand::S(s) }
+
+        rule delimiter_space()
+            = ne_space() space()
 
         // directive operands
         pub rule directive_ops() -> DirectiveOps
-            = a:e_ident() "=" e:expr() { DirectiveOps::Assign(a, e) }
-            / ol: directive_op() ** "," { DirectiveOps::OpList(ol) }
+            = a:e_ident() space() "=" space() e:expr() { DirectiveOps::Assign(a, e) }
+            // Start pragma hack
+            / a:directive_op() ne_space() b:directive_op() ne_space() c:directive_op() ne_space() d:directive_op() ne_space() e:directive_op() ne_space() f:directive_op() { DirectiveOps::OpList(vec![a, b, c, d, e, f]) }
+            / a:directive_op() ne_space() b:directive_op() ne_space() c:directive_op() ne_space() d:directive_op() ne_space() e:directive_op() { DirectiveOps::OpList(vec![a, b, c, d, e]) }
+            / a:directive_op() ne_space() b:directive_op() ne_space() c:directive_op() ne_space() d:directive_op() { DirectiveOps::OpList(vec![a, b, c, d]) }
+            / a:directive_op() ne_space() b:directive_op() ne_space() c:directive_op() { DirectiveOps::OpList(vec![a, b, c]) }
+            / a:directive_op() ne_space() b:directive_op() { DirectiveOps::OpList(vec![a, b]) }
+            // End pragma hack
+            / ol: directive_op() ** delimiter() { DirectiveOps::OpList(ol) }
 
         // directive line
         pub rule directive_line() -> Document
-            = l:label()? space() d:directive() space() os:directive_ops() comment()? { Document::DirectiveLine(Box::new(l), d, os) }
+            = l:label()? space() d:directive() space() os:directive_ops() space() comment()? { Document::DirectiveLine(Box::new(l), d, os) }
 
         // line
         pub rule line() -> Document
