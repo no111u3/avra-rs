@@ -26,6 +26,9 @@ parser! {
         // spaces
         rule space() = [' ' | '\t']*
 
+        // no empty spaces
+        rule ne_space() = [' ' | '\t']+
+
         // new line
         rule new_line() = ['\n' | '\r']*
 

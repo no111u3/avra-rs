@@ -5,7 +5,7 @@ use strum_macros::{Display, EnumString};
 use crate::device::{Device, DEVICES};
 use crate::expr::{Expr, GetIdent};
 use crate::parser::{
-    parse_file_internal, CodePoint, Item, ParseResult, Paths, Segment, SegmentType,
+    parse_file_internal, CodePoint, Item, ParseResult, Paths, Segment, SegmentType, NextItem,
 };
 
 use failure::{bail, Error};
@@ -97,9 +97,10 @@ impl Directive {
         curr_segment: Segment,
         paths: Paths,
         point: CodePoint,
-    ) -> Result<Segment, Error> {
+    ) -> Result<(NextItem, Segment), Error> {
         let mut curr_segment = curr_segment.clone();
         let mut current_type = curr_segment.t;
+        let mut next_item = NextItem::NewLine;
 
         match self {
             Directive::Db
@@ -193,6 +194,37 @@ impl Directive {
                     bail!("wrong format for .include, expected: {} in {}", opts, point,);
                 }
             }
+            Directive::Ifndef | Directive::Ifdef => {
+                if let DirectiveOps::OpList(values) = &opts {
+                    if let Operand::E(Expr::Ident(name)) = &values[0] {
+                        if result.defines.contains_key(name) {
+                            if self == &Directive::Ifndef {
+                                next_item = NextItem::EndIf;
+                            };
+                        } else {
+                            if self == &Directive::Ifdef {
+                                next_item = NextItem::EndIf;
+                            }
+                        }
+                    } else {
+                        bail!("wrong format for .{}, expected: {} in {}", self, opts, point,);
+                    }
+                } else {
+                    bail!("wrong format for .{}, expected: {} in {}", self, opts, point,);
+                }
+            }
+            Directive::Define => {
+                if let DirectiveOps::OpList(values) = &opts {
+                    if let Operand::E(Expr::Ident(name)) = &values[0] {
+                        result.defines.insert(name.clone(), Expr::Const(0));
+                    } else {
+                        bail!("wrong format for .define, expected: {} in {}", opts, point,);
+                    }
+                } else {
+                    bail!("wrong format for .define, expected: {} in {}", opts, point,);
+                }
+            }
+            Directive::Endif => {}
             Directive::Custom(name) => bail!("unsupported custom directive {}, {}", name, point),
             _ => bail!(
                 "Unsupported directive {} in {} segment, {}",
@@ -202,7 +234,7 @@ impl Directive {
             ),
         }
 
-        Ok(curr_segment)
+        Ok((next_item, curr_segment))
     }
 }
 
@@ -414,6 +446,7 @@ mod parser_tests {
                     }
                 ],
                 equs: HashMap::new(),
+                defines: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
@@ -450,6 +483,7 @@ mod parser_tests {
                     }
                 ],
                 equs: HashMap::new(),
+                defines: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
@@ -483,6 +517,7 @@ mod parser_tests {
                     }
                 ],
                 equs: HashMap::new(),
+                defines: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
@@ -527,6 +562,7 @@ mod parser_tests {
                     },
                 ],
                 equs: HashMap::new(),
+                defines: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
@@ -580,6 +616,7 @@ mod parser_tests {
                     address: 0
                 }],
                 equs: HashMap::new(),
+                defines: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
@@ -629,6 +666,7 @@ mod parser_tests {
                     address: 0
                 }],
                 equs: HashMap::new(),
+                defines: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
@@ -646,6 +684,7 @@ mod parser_tests {
                     "REG1".to_string() => Expr::Const(0x45),
                     "REG2".to_string() => Expr::Const(0x46),
                 },
+                defines: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
@@ -691,6 +730,7 @@ mod parser_tests {
                     address: 0,
                 }],
                 equs: HashMap::new(),
+                defines: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
@@ -743,6 +783,7 @@ mod parser_tests {
                     address: 0,
                 }],
                 equs: HashMap::new(),
+                defines: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
@@ -775,6 +816,7 @@ mod parser_tests {
                     address: 0
                 }],
                 equs: HashMap::new(),
+                defines: hashmap! {},
                 device: Some(DEVICES.get("ATmega48").unwrap().clone()),
             }
         );
@@ -810,7 +852,66 @@ mod parser_tests {
                 equs: hashmap! {
                     "SREG".to_string() => Expr::Const(0x3f),
                 },
+                defines: hashmap! {},
                 device: Some(DEVICES.get("ATmega48").unwrap().clone()),
+            }
+        );
+    }
+
+    #[test]
+    fn check_directive_ifdef_ifndef_define() {
+        let parse_result = parse_str(".define T\n.ifndef T\n.endif");
+        assert_eq!(
+            parse_result.unwrap(),
+            ParseResult {
+                segments: vec![],
+                equs: HashMap::new(),
+                defines: hashmap! { "T".to_string() => Expr::Const(0) },
+                device: Some(Device::new(0)),
+            }
+        );
+
+        let parse_result = parse_str("\n.ifndef T\n.endif");
+        assert_eq!(
+            parse_result.unwrap(),
+            ParseResult {
+                segments: vec![],
+                equs: HashMap::new(),
+                defines: hashmap! {},
+                device: Some(Device::new(0)),
+            }
+        );
+
+        let parse_result = parse_str(".ifdef T\n.endif");
+        assert_eq!(
+            parse_result.unwrap(),
+            ParseResult {
+                segments: vec![],
+                equs: HashMap::new(),
+                defines: hashmap! {},
+                device: Some(Device::new(0)),
+            }
+        );
+
+        let parse_result = parse_str(".define T\n.ifdef T\n.endif");
+        assert_eq!(
+            parse_result.unwrap(),
+            ParseResult {
+                segments: vec![],
+                equs: HashMap::new(),
+                defines: hashmap! { "T".to_string() => Expr::Const(0) },
+                device: Some(Device::new(0)),
+            }
+        );
+
+        let parse_result = parse_str("\n.ifndef T\n.ifdef T\n.define T\n.endif\n.define X\n.endif");
+        assert_eq!(
+            parse_result.unwrap(),
+            ParseResult {
+                segments: vec![],
+                equs: HashMap::new(),
+                defines: hashmap! { "X".to_string() => Expr::Const(0)},
+                device: Some(Device::new(0)),
             }
         );
     }

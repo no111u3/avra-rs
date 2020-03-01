@@ -15,6 +15,7 @@ use crate::instruction::{operation::Operation, InstructionOps};
 use failure::{bail, Error};
 use maplit::btreeset;
 use strum_macros::Display;
+use std::iter::Iterator;
 
 pub type Paths = BTreeSet<PathBuf>;
 
@@ -74,6 +75,8 @@ pub struct ParseResult {
     pub segments: Vec<Segment>,
     // equals
     pub equs: HashMap<String, Expr>,
+    // defines
+    pub defines: HashMap<String, Expr>,
     // device
     pub device: Option<Device>,
 }
@@ -83,6 +86,7 @@ impl ParseResult {
         Self {
             segments: vec![],
             equs: HashMap::new(),
+            defines: HashMap::new(),
             device: Some(Device::new(0)),
         }
     }
@@ -166,6 +170,49 @@ pub fn parse_file_internal(
     Ok(curr_segment)
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum NextItem {
+    NewLine,
+    EndIf,
+    EndMacro,
+    EndFile,
+}
+
+fn skip<'a>(iter: &mut dyn Iterator<Item = (usize, &'a str)>, ni: NextItem) -> Option<(usize, &'a str)> {
+    let mut scoup_count = 0;
+    match ni {
+        NextItem::NewLine => iter.next(),
+        NextItem::EndFile => None,
+        other => {
+            let mut ret = None;
+            while let Some((_, line)) = iter.next() {
+                if let Ok(item) = document::line(line) {
+                    if let Document::DirectiveLine(_, directive, _) = item {
+                        if other == NextItem::EndIf {
+                            if directive == Directive::If || directive == Directive::Ifdef || directive == Directive::Ifndef {
+                                scoup_count += 1;
+                            }
+                            if directive == Directive::Endif {
+                                if scoup_count == 0 {
+                                    ret = iter.next();
+                                    break;
+                                } else {
+                                    scoup_count -= 1;
+                                }
+                            }
+                        }
+                        if other == NextItem::EndMacro && directive == Directive::Endmacro || directive == Directive::Endm {
+                            ret = iter.next();
+                            break;
+                        }
+                    }
+                }
+            }
+            ret
+        }
+    }
+}
+
 pub fn parse(
     input: &str,
     result: &mut ParseResult,
@@ -174,54 +221,64 @@ pub fn parse(
 ) -> Result<Segment, Error> {
     let mut curr_segment = curr_segment.clone();
 
-    for (line_num, line) in input.lines().enumerate() {
-        let line_num = line_num + 1;
-        let parsed_item = document::line(line);
-        if let Ok(item) = parsed_item {
-            match item {
-                Document::Label(name) => {
-                    curr_segment
-                        .items
-                        .push((CodePoint { line_num, num: 1 }, Item::Label(name)));
-                }
-                Document::CodeLine(label, op, op_args) => {
-                    if let Some(label) = *label {
-                        if let Document::Label(name) = label {
-                            curr_segment
-                                .items
-                                .push((CodePoint { line_num, num: 1 }, Item::Label(name)));
-                        }
+    let mut lines = input.lines().enumerate();
+
+    let mut next_item = NextItem::NewLine;
+
+    loop {
+        if let Some((line_num, line)) = skip(&mut lines, next_item) {
+            let line_num = line_num + 1;
+            let parsed_item = document::line(line);
+            if let Ok(item) = parsed_item {
+                match item {
+                    Document::Label(name) => {
+                        curr_segment
+                            .items
+                            .push((CodePoint { line_num, num: 1 }, Item::Label(name)));
                     }
-                    curr_segment.items.push((
-                        CodePoint { line_num, num: 2 },
-                        Item::Instruction(op, op_args),
-                    ));
-                }
-                Document::DirectiveLine(label, d, d_op_args) => {
-                    if let Some(label) = *label {
-                        if let Document::Label(name) = label {
-                            curr_segment
-                                .items
-                                .push((CodePoint { line_num, num: 1 }, Item::Label(name)));
+                    Document::CodeLine(label, op, op_args) => {
+                        if let Some(label) = *label {
+                            if let Document::Label(name) = label {
+                                curr_segment
+                                    .items
+                                    .push((CodePoint { line_num, num: 1 }, Item::Label(name)));
+                            }
                         }
+                        curr_segment.items.push((
+                            CodePoint { line_num, num: 2 },
+                            Item::Instruction(op, op_args),
+                        ));
                     }
-                    curr_segment = d.parse(
-                        &d_op_args,
-                        result,
-                        curr_segment,
-                        paths.clone(),
-                        CodePoint { line_num, num: 2 },
-                    )?;
+                    Document::DirectiveLine(label, d, d_op_args) => {
+                        if let Some(label) = *label {
+                            if let Document::Label(name) = label {
+                                curr_segment
+                                    .items
+                                    .push((CodePoint { line_num, num: 1 }, Item::Label(name)));
+                            }
+                        }
+                        let (item, segment) = d.parse(
+                            &d_op_args,
+                            result,
+                            curr_segment,
+                            paths.clone(),
+                            CodePoint { line_num, num: 2 },
+                        )?;
+                        next_item = item;
+                        curr_segment = segment;
+                    }
+                    Document::EmptyLine => {}
+                    _ => {}
                 }
-                Document::EmptyLine => {}
-                _ => {}
+            } else {
+                bail!(
+                    "failed to parse {} with error: {:?}",
+                    CodePoint { line_num, num: 1 },
+                    parsed_item
+                );
             }
         } else {
-            bail!(
-                "failed to parse {} with error: {:?}",
-                CodePoint { line_num, num: 1 },
-                parsed_item
-            );
+            break;
         }
     }
 
@@ -285,6 +342,7 @@ mod parser_tests {
                     address: 0
                 }],
                 equs: hashmap! {},
+                defines: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
@@ -314,6 +372,7 @@ mod parser_tests {
                     address: 0
                 }],
                 equs: hashmap! {},
+                defines: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
@@ -334,6 +393,7 @@ mod parser_tests {
                     address: 0
                 }],
                 equs: hashmap! {},
+                defines: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
@@ -392,6 +452,7 @@ mod parser_tests {
                     address: 0
                 }],
                 equs: hashmap! {},
+                defines: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
@@ -435,6 +496,7 @@ mod parser_tests {
                     address: 0
                 }],
                 equs: hashmap! {},
+                defines: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
@@ -478,6 +540,7 @@ mod parser_tests {
                     address: 0
                 }],
                 equs: hashmap! {},
+                defines: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
@@ -524,6 +587,7 @@ mod parser_tests {
                     address: 0
                 }],
                 equs: hashmap! {},
+                defines: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
@@ -566,6 +630,7 @@ mod parser_tests {
                     address: 0
                 }],
                 equs: hashmap! {},
+                defines: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
@@ -649,6 +714,7 @@ mod parser_tests {
                     address: 0
                 }],
                 equs: hashmap! {},
+                defines: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
@@ -716,6 +782,7 @@ mod parser_tests {
                     address: 0
                 }],
                 equs: hashmap! {},
+                defines: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
@@ -763,6 +830,7 @@ mod parser_tests {
                     address: 0
                 }],
                 equs: hashmap! {},
+                defines: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
