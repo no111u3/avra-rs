@@ -415,7 +415,7 @@ mod parser_tests {
             document::line(".dseg"),
             Ok(Document::DirectiveLine(
                 Box::new(None),
-                Directive::Dseg,
+                Directive::DSeg,
                 DirectiveOps::OpList(vec![])
             ))
         );

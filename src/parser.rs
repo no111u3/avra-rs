@@ -193,8 +193,8 @@ fn skip<'a>(
                     if let Document::DirectiveLine(_, directive, _) = item {
                         if other == NextItem::EndIf {
                             if directive == Directive::If
-                                || directive == Directive::Ifdef
-                                || directive == Directive::Ifndef
+                                || directive == Directive::IfDef
+                                || directive == Directive::IfNDef
                             {
                                 scoup_count += 1;
                             }
@@ -209,8 +209,8 @@ fn skip<'a>(
                                 }
                             }
                         }
-                        if other == NextItem::EndMacro && directive == Directive::Endmacro
-                            || directive == Directive::Endm
+                        if other == NextItem::EndMacro && directive == Directive::EndMacro
+                            || directive == Directive::EndM
                         {
                             ret = iter.next();
                             break;

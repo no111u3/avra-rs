@@ -17,9 +17,9 @@ pub enum Directive {
     /// Reserve bytes for a variable in RAM
     Byte,
     /// Code segment
-    Cseg,
+    CSeg,
     /// Program memory size for AT94K (unsupported)
-    Csegsize,
+    CSegSize,
     /// Define constant bytes in program memory and EEPROM
     Db,
     /// Define a symbolic name on a register (unsupported)
@@ -27,30 +27,30 @@ pub enum Directive {
     /// Device specific
     Device,
     /// Data segment
-    Dseg,
+    DSeg,
     /// Define constant words in program memory and EEPROM
     Dw,
     /// End of macro define (unsupported)
-    Endm,
-    Endmacro,
+    EndM,
+    EndMacro,
     /// Set a symbol equal to an expression
     Equ,
     /// EEPROM segment
-    Eseg,
+    ESeg,
     /// Exit from file
     Exit,
     /// Read source from another file
     Include,
     /// Another path for includes (unsupported)
-    Includepath,
+    IncludePath,
     /// Turn listfile generation on (unsupported)
     List,
     /// Turn macro expansion in list file on (unsupported)
-    Listmac,
+    ListMac,
     /// Begin macro (unsupported)
     Macro,
     /// Turn listfile generation off (unsupported)
-    Nolist,
+    NoList,
     /// Set program origin
     Org,
     /// Set a symbol to an expression (unsupported)
@@ -59,20 +59,20 @@ pub enum Directive {
     Define,
     /// Conditional assembly - alternate branches (partially)
     Else,
-    Elif,
+    ElIf,
     /// Conditional assembly - end conditional block
     Endif,
     /// Outputs an error message (unsupported)
     Error,
     /// Conditional assembly - begin of conditional block (partially)
     If,
-    Ifdef,
-    Ifndef,
+    IfDef,
+    IfNDef,
     /// Outputs a message string (unsupported)
     Message,
-    /// Define constant doublewords in program memory and EEPROM (unsupported)
+    /// Define constant double words in program memory and EEPROM (unsupported)
     Dd,
-    /// Define constant quadwords in program memory and EEPROM (unsupported)
+    /// Define constant quad words in program memory and EEPROM (unsupported)
     Dq,
     /// Undefine register symbol (unsupported)
     Undef,
@@ -80,7 +80,7 @@ pub enum Directive {
     Warning,
     /// Set up/down overlapping section (unsupported)
     Overlap,
-    Nooverlap,
+    NoOverlap,
     /// Preprocessor pragmas (partially)
     Pragma,
 
@@ -137,11 +137,11 @@ impl Directive {
                     bail!("wrong format for .org, expected: {} in {}", opts, point,);
                 }
             }
-            Directive::Cseg | Directive::Dseg | Directive::Eseg => {
+            Directive::CSeg | Directive::DSeg | Directive::ESeg => {
                 current_type = match self {
-                    Directive::Cseg => SegmentType::Code,
-                    Directive::Dseg => SegmentType::Data,
-                    Directive::Eseg => SegmentType::Eeprom,
+                    Directive::CSeg => SegmentType::Code,
+                    Directive::DSeg => SegmentType::Data,
+                    Directive::ESeg => SegmentType::Eeprom,
                     _ => SegmentType::Code,
                 };
 
@@ -195,15 +195,15 @@ impl Directive {
                     bail!("wrong format for .include, expected: {} in {}", opts, point,);
                 }
             }
-            Directive::Ifndef | Directive::Ifdef => {
+            Directive::IfNDef | Directive::IfDef => {
                 if let DirectiveOps::OpList(values) = &opts {
                     if let Operand::E(Expr::Ident(name)) = &values[0] {
                         if result.defines.contains_key(name) {
-                            if self == &Directive::Ifndef {
+                            if self == &Directive::IfNDef {
                                 next_item = NextItem::EndIf;
                             };
                         } else {
-                            if self == &Directive::Ifdef {
+                            if self == &Directive::IfDef {
                                 next_item = NextItem::EndIf;
                             }
                         }
@@ -350,7 +350,7 @@ mod parser_tests {
     fn directive_test() {
         assert_eq!(document::directive(".equ"), Ok(Directive::Equ));
 
-        assert_eq!(document::directive(".dseg"), Ok(Directive::Dseg));
+        assert_eq!(document::directive(".dseg"), Ok(Directive::DSeg));
     }
 
     #[test]
@@ -418,7 +418,7 @@ mod parser_tests {
             document::directive_line(".dseg"),
             Ok(Document::DirectiveLine(
                 Box::new(None),
-                Directive::Dseg,
+                Directive::DSeg,
                 DirectiveOps::OpList(vec![])
             ))
         );
