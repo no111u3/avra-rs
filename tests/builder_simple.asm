@@ -1,5 +1,4 @@
-; .include "m48def.inc"; - need adding more directives and other code construction support
-.device ATmega48 ; describe device type
+.include "m48def.inc" ; - include device specific include file
 ; begin of file
         .dseg
 counter:

@@ -170,6 +170,7 @@ fn pass_1_internal(
                             }
                             _ => bail!(".byte are not allowed in {} segment, {}", segment.t, line),
                         },
+                        Directive::Pragma => { },
                         _ => bail!("unsupported directive {}, {}", d, line),
                     }
                 }
