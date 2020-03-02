@@ -41,7 +41,7 @@ parser! {
         // label
         pub rule label() -> Document
             = l:$(ident())":" {
-            Document::Label(l.to_string())
+            Document::Label(l.to_lowercase())
         }
 
         // string
@@ -134,18 +134,18 @@ parser! {
 
         pub rule operation() -> Operation
             = op_name:$(['a'..='z']+) {
-                if let Ok(op) = document::standard_operation(op_name) {
+                if let Ok(op) = document::standard_operation(op_name.to_lowercase().as_str()) {
                     op
                 } else {
-                    Operation::Custom(op_name.to_string())
+                    Operation::Custom(op_name.to_lowercase())
                 }
             }
 
         pub rule reg8() -> Reg8
-            = r_name:$("r" ['0'..='9']*<1,2>) { Reg8::from_str(r_name).unwrap() }
+            = r_name:$(['r' | 'R'] ['0'..='9']*<1,2>) { Reg8::from_str(r_name.to_lowercase().as_str()).unwrap() }
 
         pub rule reg16() -> Reg16
-            = r_name:$(['X' | 'Y' | 'Z']) { Reg16::from_str(r_name).unwrap() }
+            = r_name:$(['x' | 'y' | 'z' | 'X' | 'Y' | 'Z']) { Reg16::from_str(r_name.to_lowercase().as_str()).unwrap() }
 
         pub rule index_ops() -> IndexOps
             = "-" r:reg16() { IndexOps::PreDecrement(r) }
@@ -163,7 +163,7 @@ parser! {
 
         pub rule directive() -> Directive
             = ("." / "#" ) d_name:$(['a'..='z']+) {
-            if let Ok(Ok(d)) = document::standard_directive(d_name) {
+            if let Ok(Ok(d)) = document::standard_directive(d_name.to_lowercase().as_str()) {
                 d
             } else {
                 Directive::Custom(d_name.to_string())

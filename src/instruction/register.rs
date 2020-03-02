@@ -48,6 +48,7 @@ impl Reg8 {
 
 /// Combined core registers
 #[derive(Clone, Copy, PartialEq, Eq, Debug, EnumString)]
+#[strum(serialize_all = "lowercase")]
 pub enum Reg16 {
     X,
     Y,
