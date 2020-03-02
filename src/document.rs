@@ -153,10 +153,12 @@ parser! {
             / r:reg16() "+" { IndexOps::PostIncrement(r) }
             / r:reg16() { IndexOps::None(r) }
 
+
         pub rule instruction_ops() -> InstructionOps
             = ind:index_ops() { InstructionOps::Index(ind) }
             / r8:reg8() { InstructionOps::R8(r8) }
             / e:expr() { InstructionOps::E(e) }
+
 
         pub rule standard_directive() -> Result<Directive, strum::ParseError>
             = d:$(['a'..='z']+) { Directive::from_str(d) }

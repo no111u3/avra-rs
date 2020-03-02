@@ -3,14 +3,17 @@
 use crate::builder::pass1::BuildResultPass1;
 use crate::device::Device;
 use crate::directive::{Directive, DirectiveOps};
-use crate::instruction::process;
+use crate::instruction::{process, register::Reg8};
 use crate::parser::{Item, Segment, SegmentType};
 
 use std::collections::HashMap;
+use std::str::FromStr;
 
 use crate::expr::{Expr, GetIdent};
 
 use failure::{bail, Error};
+
+use maplit::hashmap;
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct ExecutionParameters<'a> {
@@ -47,6 +50,9 @@ pub fn build_pass_2(pass1: BuildResultPass1) -> Result<BuildResultPass2, Error> 
     let code_start_address = 0x0;
     let mut eeprom = vec![];
     let eeprom_start_address = 0x0;
+
+    let mut defs = hashmap! {};
+
     let e_p = ExecutionParameters {
         equs: &pass1.equs,
         labels: &pass1.labels,
@@ -75,7 +81,7 @@ pub fn build_pass_2(pass1: BuildResultPass1) -> Result<BuildResultPass2, Error> 
             SegmentType::Data => {}
         }
 
-        let fragment = pass_2_internal(&segment, &e_p)?;
+        let fragment = pass_2_internal(&segment, &e_p, &mut defs)?;
 
         match segment.t {
             SegmentType::Code => {
@@ -97,7 +103,11 @@ pub fn build_pass_2(pass1: BuildResultPass1) -> Result<BuildResultPass2, Error> 
     })
 }
 
-fn pass_2_internal(segment: &Segment, e_p: &ExecutionParameters) -> Result<Vec<u8>, Error> {
+fn pass_2_internal(
+    segment: &Segment,
+    e_p: &ExecutionParameters,
+    defs: &mut HashMap<String, Reg8>,
+) -> Result<Vec<u8>, Error> {
     let mut code_fragment = vec![];
 
     let mut cur_address = segment.address;
@@ -106,7 +116,7 @@ fn pass_2_internal(segment: &Segment, e_p: &ExecutionParameters) -> Result<Vec<u
         match item {
             Item::Instruction(op, op_args) => {
                 if e_p.device.check_operation(op) {
-                    let complete_op = match process(&op, &op_args, cur_address, e_p) {
+                    let complete_op = match process(&op, &op_args, cur_address, e_p, &defs) {
                         Ok(ok) => ok,
                         Err(e) => bail!("{}, {}", e, line),
                     };
@@ -147,6 +157,17 @@ fn pass_2_internal(segment: &Segment, e_p: &ExecutionParameters) -> Result<Vec<u
                             data.len() as u32
                         };
                         code_fragment.extend(data);
+                    }
+                }
+                Directive::Def => {
+                    if let DirectiveOps::Assign(Expr::Ident(alias), Expr::Ident(register)) = d_op {
+                        if let Some(_) = defs.insert(
+                            alias.to_lowercase(),
+                            Reg8::from_str(register.to_lowercase().as_str()).unwrap(),
+                        ) {
+                            // TODO: add display current string of mistake and previous location
+                            bail!("Identifier {} is used twice, {}", alias, line);
+                        }
                     }
                 }
                 _ => {}
