@@ -21,6 +21,7 @@ m0:     pop r1
         ldi zl, low(data)
         ldi zh, high(data)
         lpm r16, Z+
+.else
 .endif
         rjmp m1
 ; Output string

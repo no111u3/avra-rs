@@ -237,6 +237,7 @@ pub fn parse(
 
     loop {
         if let Some((line_num, line)) = skip(&mut lines, next_item) {
+            next_item = NextItem::NewLine; // clear conditional flag to typical state
             let line_num = line_num + 1;
             let parsed_item = document::line(line);
             if let Ok(item) = parsed_item {
