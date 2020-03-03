@@ -17,9 +17,11 @@ m_begin: ; start calculation
         rjmp m_begin
 ; Restore operation setups
 m0:     pop r1
-        ldi r30, low(data)
-        ldi r31, high(data)
+.ifndef NotConsume
+        ldi zl, low(data)
+        ldi zh, high(data)
         lpm r16, Z+
+.endif
         rjmp m1
 ; Output string
 data:   .db 15, 26, "Hello, World", end

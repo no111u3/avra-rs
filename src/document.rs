@@ -32,9 +32,11 @@ parser! {
         // new line
         rule new_line() = ['\n' | '\r']*
 
+        rule char_ident() = ['0'..='9' | 'a'..='z' | 'A'..='Z' | '_' ]
+
         // ident
         pub rule ident() -> Document
-            = i:$(['a'..='z' | 'A'..='Z' | '_' ]['0'..='9' | 'a'..='z' | 'A'..='Z' | '_' ]*) {
+            = i:$(['a'..='z' | 'A'..='Z' | '_' ] char_ident()*) {
             Document::Ident(i.parse().unwrap())
         }
 
@@ -151,7 +153,7 @@ parser! {
             = "-" r:reg16() { IndexOps::PreDecrement(r) }
             / r:reg16() "+" e:expr() { IndexOps::PostIncrementE(r, e) }
             / r:reg16() "+" { IndexOps::PostIncrement(r) }
-            / r:reg16() { IndexOps::None(r) }
+            / r:reg16() !char_ident() { IndexOps::None(r) }
 
 
         pub rule instruction_ops() -> InstructionOps

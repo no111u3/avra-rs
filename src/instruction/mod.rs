@@ -456,6 +456,11 @@ mod parser_tests {
                 Expr::Const(24)
             )))
         );
+
+        assert_eq!(
+            document::instruction_ops("zl"),
+            Ok(InstructionOps::E(Expr::Ident("zl".to_string())))
+        );
     }
 
     #[test]

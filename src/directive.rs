@@ -942,24 +942,35 @@ mod parser_tests {
             }
         );
 
-        let parse_result = parse_str(".ifdef T\n.define X\n.else\n.define Y\n.endif");
+        let parse_result = parse_str(".ifdef T\n.define X\n.else\n.define Y\n.endif\n.define Z");
         assert_eq!(
             parse_result.unwrap(),
             ParseResult {
                 segments: vec![],
                 equs: HashMap::new(),
-                defines: hashmap! { "Y".to_string() => Expr::Const(0)},
+                defines: hashmap! { "Y".to_string() => Expr::Const(0), "Z".to_string() => Expr::Const(0) },
                 device: Some(Device::new(0)),
             }
         );
 
-        let parse_result = parse_str(".ifndef T\n.define X\n.else\n.define Y\n.endif");
+        let parse_result = parse_str(".ifndef T\n.define X\n.else\n.define Y\n.endif\n.define Z");
         assert_eq!(
             parse_result.unwrap(),
             ParseResult {
                 segments: vec![],
                 equs: HashMap::new(),
-                defines: hashmap! { "X".to_string() => Expr::Const(0)},
+                defines: hashmap! { "X".to_string() => Expr::Const(0), "Z".to_string() => Expr::Const(0) },
+                device: Some(Device::new(0)),
+            }
+        );
+
+        let parse_result = parse_str(".ifndef T\n.define X\n.else\n.endif\n.define Z");
+        assert_eq!(
+            parse_result.unwrap(),
+            ParseResult {
+                segments: vec![],
+                equs: HashMap::new(),
+                defines: hashmap! { "X".to_string() => Expr::Const(0), "Z".to_string() => Expr::Const(0) },
                 device: Some(Device::new(0)),
             }
         );
