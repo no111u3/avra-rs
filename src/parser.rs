@@ -197,8 +197,8 @@ fn skip<'a>(
                                 || directive == Directive::IfNDef
                             {
                                 scoup_count += 1;
-                            }
-                            else if directive == Directive::Endif || directive == Directive::Else {
+                            } else if directive == Directive::Endif || directive == Directive::Else
+                            {
                                 if scoup_count == 0 {
                                     ret = iter.next();
                                     break;

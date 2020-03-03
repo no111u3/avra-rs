@@ -22,7 +22,7 @@ pub enum Directive {
     CSegSize,
     /// Define constant bytes in program memory and EEPROM
     Db,
-    /// Define a symbolic name on a register (unsupported)
+    /// Define a symbolic name on a register
     Def,
     /// Device specific
     Device,
