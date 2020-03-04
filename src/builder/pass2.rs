@@ -2,7 +2,7 @@
 
 use crate::builder::pass1::BuildResultPass1;
 use crate::device::Device;
-use crate::directive::{Directive, DirectiveOps};
+use crate::directive::{Directive, DirectiveOps, Operand};
 use crate::instruction::{process, register::Reg8};
 use crate::parser::{Item, Segment, SegmentType};
 
@@ -167,6 +167,15 @@ fn pass_2_internal(
                         ) {
                             // TODO: add display current string of mistake and previous location
                             bail!("Identifier {} is used twice, {}", alias, line);
+                        }
+                    }
+                }
+                Directive::Undef => {
+                    if let DirectiveOps::OpList(values) = d_op {
+                        if let Operand::E(Expr::Ident(name)) = &values[0] {
+                            if let None = defs.remove(name) {
+                                bail!("Identifier {} isn't defined, {}", name, line);
+                            }
                         }
                     }
                 }

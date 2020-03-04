@@ -74,7 +74,7 @@ pub enum Directive {
     Dd,
     /// Define constant quad words in program memory and EEPROM (unsupported)
     Dq,
-    /// Undefine register symbol (unsupported)
+    /// Undefine register symbol
     Undef,
     /// Outputs a warning message (unsupported)
     Warning,

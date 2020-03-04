@@ -11,7 +11,10 @@ state:  .byte 4
         push r0
         .org 0x1 ; test no action offset
 m_begin: ; start calculation
-        mov r17, r0
+.def t0 = r17
+        mov t0, r0
+.undef t0
+.def t0 = r16
         subi r17, (-1)
         brpl m0
         rjmp m_begin
@@ -20,7 +23,7 @@ m0:     pop r1
 .ifndef NotConsume
         ldi zl, low(data)
         ldi zh, high(data)
-        lpm r16, Z+
+        lpm t0, Z+
 .else
 .endif
         rjmp m1
