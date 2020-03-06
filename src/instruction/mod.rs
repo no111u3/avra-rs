@@ -8,9 +8,9 @@ use crate::instruction::{
     register::{Reg16, Reg8},
 };
 
+use crate::context::Context;
 use byteorder::{ByteOrder, LittleEndian};
 use failure::{bail, Error};
-use crate::context::Context;
 
 /// Index register operation type
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -71,7 +71,7 @@ pub fn process(
     op: &Operation,
     op_args: &Vec<InstructionOps>,
     current_address: u32,
-    constants: &dyn Context
+    constants: &dyn Context,
 ) -> Result<Vec<u8>, Error> {
     let mut finalized_opcode = vec![];
 

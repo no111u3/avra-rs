@@ -8,9 +8,9 @@ use crate::parser::{
     parse_file_internal, CodePoint, Item, NextItem, ParseResult, Paths, Segment, SegmentType,
 };
 
+use crate::context::Context;
 use failure::{bail, Error};
 use std::path::PathBuf;
-use crate::context::Context;
 
 #[derive(Clone, PartialEq, Eq, Debug, EnumString, Display)]
 #[strum(serialize_all = "lowercase")]

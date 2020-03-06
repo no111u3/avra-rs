@@ -11,7 +11,6 @@ use crate::parser::{Item, Segment, SegmentType};
 use std::collections::HashMap;
 use std::str::FromStr;
 
-
 use failure::{bail, Error};
 
 use maplit::hashmap;
@@ -74,8 +73,8 @@ pub fn build_pass_2(pass1: BuildResultPass1) -> Result<BuildResultPass2, Error> 
     let context = Pass2Context {
         equs: pass1.equs,
         labels: pass1.labels,
-        defs: RefCell::new(hashmap!{}),
-        sets: RefCell::new(hashmap!{}),
+        defs: RefCell::new(hashmap! {}),
+        sets: RefCell::new(hashmap! {}),
         device: pass1.device,
     };
 
@@ -123,10 +122,7 @@ pub fn build_pass_2(pass1: BuildResultPass1) -> Result<BuildResultPass2, Error> 
     })
 }
 
-fn pass_2_internal(
-    segment: &Segment,
-    context: &Pass2Context,
-) -> Result<Vec<u8>, Error> {
+fn pass_2_internal(segment: &Segment, context: &Pass2Context) -> Result<Vec<u8>, Error> {
     let mut code_fragment = vec![];
 
     let mut cur_address = segment.address;
@@ -210,7 +206,10 @@ fn pass_2_internal(
                                 bail!("Identifier {} is used twice, {}", name, line);
                             }
                         } else {
-                            context.sets.borrow_mut().insert(name.clone(), Expr::Const(value));
+                            context
+                                .sets
+                                .borrow_mut()
+                                .insert(name.clone(), Expr::Const(value));
                         }
                     }
                 }
