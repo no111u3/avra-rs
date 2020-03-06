@@ -227,7 +227,7 @@ mod builder_tests {
     use super::*;
     use crate::builder::pass0::{build_pass_0, BuildResultPass0};
     use crate::builder::pass1::build_pass_1;
-    use crate::parser::{parse_str, ParseResult};
+    use crate::parser::parse_str;
 
     #[test]
     fn check_empty() {

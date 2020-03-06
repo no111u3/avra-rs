@@ -4,10 +4,11 @@ mod opt;
 
 use crate::opt::Opt;
 
-use avra_lib::{builder::build_file, writer::write_code_hex};
+use avra_lib::{builder::build_file, utility::get_standard_includes, writer::write_code_hex};
+
+use std::path::Path;
 
 use maplit::btreeset;
-use std::path::Path;
 use structopt::StructOpt;
 
 fn main() {
@@ -20,7 +21,7 @@ fn main() {
         .into_string()
         .unwrap_or(String::new());
 
-    match build_file(opt.source.clone(), btreeset! {}) {
+    match build_file(opt.source.clone(), btreeset! { get_standard_includes() }) {
         Ok(built) => {
             // TODO: Add check and write eeprom
             // write to file

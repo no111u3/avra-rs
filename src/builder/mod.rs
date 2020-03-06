@@ -51,6 +51,7 @@ pub fn build_file(path: PathBuf, paths: Paths) -> Result<BuildResult, Error> {
 #[cfg(test)]
 mod builder_tests {
     use super::*;
+    use crate::utility::get_standard_includes;
     use maplit::btreeset;
     use std::path::PathBuf;
 
@@ -109,6 +110,14 @@ m1:
         let built = build_file(
             PathBuf::from("tests/builder_simple.asm"),
             btreeset! { PathBuf::from("includes") },
+        )
+        .unwrap();
+
+        assert_eq!(built, build_success_result);
+
+        let built = build_file(
+            PathBuf::from("tests/builder_simple.asm"),
+            btreeset! { get_standard_includes() },
         )
         .unwrap();
 

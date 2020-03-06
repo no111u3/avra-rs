@@ -11,4 +11,5 @@ pub mod document;
 pub mod expr;
 pub mod instruction;
 pub mod parser;
+pub mod utility;
 pub mod writer;
