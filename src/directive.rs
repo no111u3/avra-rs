@@ -43,7 +43,7 @@ pub enum Directive {
     Exit,
     /// Read source from another file
     Include,
-    /// Another path for includes (unsupported)
+    /// Another path for includes
     IncludePath,
     /// Turn listfile generation on (unsupported)
     List,
