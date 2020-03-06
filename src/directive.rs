@@ -3,13 +3,14 @@
 use strum_macros::{Display, EnumString};
 
 use crate::device::{Device, DEVICES};
-use crate::expr::{Expr, GetIdent};
+use crate::expr::Expr;
 use crate::parser::{
     parse_file_internal, CodePoint, Item, NextItem, ParseResult, Paths, Segment, SegmentType,
 };
 
 use failure::{bail, Error};
 use std::path::PathBuf;
+use crate::context::Context;
 
 #[derive(Clone, PartialEq, Eq, Debug, EnumString, Display)]
 #[strum(serialize_all = "lowercase")]
@@ -269,14 +270,14 @@ impl Operand {
         }
     }
 
-    pub fn get_bytes(&self, e_p: &dyn GetIdent) -> Result<Vec<u8>, Error> {
+    pub fn get_bytes(&self, e_p: &dyn Context) -> Result<Vec<u8>, Error> {
         match self {
             Operand::E(expr) => Ok(vec![expr.get_byte(e_p)?]),
             Operand::S(s) => Ok(s.as_bytes().to_vec()),
         }
     }
 
-    pub fn get_words(&self, e_p: &dyn GetIdent) -> Result<Vec<u8>, Error> {
+    pub fn get_words(&self, e_p: &dyn Context) -> Result<Vec<u8>, Error> {
         match self {
             Operand::E(expr) => Ok(expr.get_words(e_p)?.to_vec()),
             Operand::S(_) => bail!("not allowed to convert string as 2 bytes array"),
@@ -298,12 +299,12 @@ impl DirectiveOps {
         }
     }
 
-    pub fn get_bytes(&self, e_p: &dyn GetIdent) -> Result<Vec<u8>, Error> {
+    pub fn get_bytes(&self, constants: &dyn Context) -> Result<Vec<u8>, Error> {
         match self {
             DirectiveOps::OpList(items) => {
                 let mut bytes = vec![];
                 for item in items {
-                    bytes.extend(item.get_bytes(e_p)?);
+                    bytes.extend(item.get_bytes(constants)?);
                 }
 
                 Ok(bytes)
@@ -312,12 +313,12 @@ impl DirectiveOps {
         }
     }
 
-    pub fn get_words(&self, e_p: &dyn GetIdent) -> Result<Vec<u8>, Error> {
+    pub fn get_words(&self, constants: &dyn Context) -> Result<Vec<u8>, Error> {
         match self {
             DirectiveOps::OpList(items) => {
                 let mut bytes = vec![];
                 for item in items {
-                    bytes.extend(item.get_words(e_p)?);
+                    bytes.extend(item.get_words(constants)?);
                 }
 
                 Ok(bytes)

@@ -1,7 +1,7 @@
 pub mod operation;
 pub mod register;
 
-use crate::expr::{Expr, GetIdent};
+use crate::expr::Expr;
 
 use crate::instruction::{
     operation::{BranchT, Operation},
@@ -10,7 +10,7 @@ use crate::instruction::{
 
 use byteorder::{ByteOrder, LittleEndian};
 use failure::{bail, Error};
-use std::collections::HashMap;
+use crate::context::Context;
 
 /// Index register operation type
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -33,10 +33,10 @@ pub enum InstructionOps {
 }
 
 impl InstructionOps {
-    fn get_r8(&self, defs: &HashMap<String, Reg8>) -> Result<Reg8, Error> {
+    fn get_r8(&self, constants: &dyn Context) -> Result<Reg8, Error> {
         match self {
             Self::R8(reg8) => Ok(*reg8),
-            Self::E(Expr::Ident(name)) => match defs.get(name).map(|x| x.clone()) {
+            Self::E(Expr::Ident(name)) => match constants.get_def(name).map(|x| x.clone()) {
                 Some(reg8) => Ok(reg8),
                 None => bail!("No found {} in .defs", name),
             },
@@ -71,8 +71,7 @@ pub fn process(
     op: &Operation,
     op_args: &Vec<InstructionOps>,
     current_address: u32,
-    constants: &dyn GetIdent,
-    defs: &HashMap<String, Reg8>,
+    constants: &dyn Context
 ) -> Result<Vec<u8>, Error> {
     let mut finalized_opcode = vec![];
 
@@ -93,14 +92,14 @@ pub fn process(
         | Operation::Cpc
         | Operation::Mov
         | Operation::Mul => {
-            let d = op_args[0].get_r8(&defs)?;
+            let d = op_args[0].get_r8(constants)?;
             opcode |= d.number() << 4;
 
-            let r = op_args[1].get_r8(&defs)?;
+            let r = op_args[1].get_r8(constants)?;
             opcode |= (r.number() & 0x10) << 5 | r.number() & 0x0f;
         }
         Operation::Adiw | Operation::Sbiw => {
-            let d = op_args[0].get_r8(&defs)?;
+            let d = op_args[0].get_r8(constants)?;
             let d = d.number();
             if !(d == 24 || d == 26 || d == 28 || d == 30) {
                 bail!("{:?} can only use registers R24, R26, R28 or R30", op);
@@ -123,7 +122,7 @@ pub fn process(
         | Operation::Cbr
         | Operation::Cpi
         | Operation::Ldi => {
-            let d = op_args[0].get_r8(&defs)?;
+            let d = op_args[0].get_r8(constants)?;
             if d.number() < 16 {
                 bail!("{:?} can only use a high register (r16 - r31)", op);
             }
@@ -149,42 +148,42 @@ pub fn process(
         | Operation::Ror
         | Operation::Asr
         | Operation::Swap => {
-            let r = op_args[0].get_r8(&defs)?;
+            let r = op_args[0].get_r8(constants)?;
             opcode |= r.number() << 4;
         }
         Operation::Tst | Operation::Clr | Operation::Lsl | Operation::Rol => {
-            let r = op_args[0].get_r8(&defs)?;
+            let r = op_args[0].get_r8(constants)?;
             opcode |= r.number() << 4;
             opcode |= (r.number() & 0x10) << 5 | r.number() & 0x0f;
         }
         Operation::Ser => {
-            let r = op_args[0].get_r8(&defs)?;
+            let r = op_args[0].get_r8(constants)?;
             if r.number() < 16 {
                 bail!("{:?} can only use a high register (r16 - r31)", op);
             }
             opcode |= (r.number() & 0x0f) << 4;
         }
         Operation::Muls => {
-            let d = op_args[0].get_r8(&defs)?;
+            let d = op_args[0].get_r8(constants)?;
             if d.number() < 16 {
                 bail!("{:?} can only use a high register (r16 - r31)", op);
             }
             opcode |= (d.number() & 0x0f) << 4;
 
-            let r = op_args[1].get_r8(&defs)?;
+            let r = op_args[1].get_r8(constants)?;
             if r.number() < 16 {
                 bail!("{:?} can only use a high register (r16 - r31)", op);
             }
             opcode |= r.number() & 0x0f;
         }
         Operation::Mulsu | Operation::Fmul | Operation::Fmuls | Operation::Fmulsu => {
-            let d = op_args[0].get_r8(&defs)?;
+            let d = op_args[0].get_r8(constants)?;
             if d.number() < 16 {
                 bail!("{:?} can only use registers (r16 - r23)", op);
             }
             opcode |= (d.number() & 0x07) << 4;
 
-            let r = op_args[1].get_r8(&defs)?;
+            let r = op_args[1].get_r8(constants)?;
             if r.number() < 16 {
                 bail!("{:?} can only use registers (r16 - r23)", op);
             }
@@ -234,13 +233,13 @@ pub fn process(
             opcode |= ((rel as u16) & 0x7f) << 3;
         }
         Operation::Movw => {
-            let d = op_args[0].get_r8(&defs)?;
+            let d = op_args[0].get_r8(constants)?;
             if d.number() < 16 && d.number() % 2 != 0 {
                 bail!("{:?} can only use a even numbered for Rd", op);
             }
             opcode |= (d.number() / 2) << 4;
 
-            let r = op_args[1].get_r8(&defs)?;
+            let r = op_args[1].get_r8(constants)?;
             if r.number() < 16 && r.number() % 2 != 0 {
                 bail!("{:?} can only use a even numbered for Rr", op);
             }
@@ -249,9 +248,9 @@ pub fn process(
 
         Operation::Lds | Operation::Sts => {
             let (r, k) = if let Operation::Lds = op {
-                (op_args[0].get_r8(&defs)?, op_args[1].get_expr()?)
+                (op_args[0].get_r8(constants)?, op_args[1].get_expr()?)
             } else {
-                (op_args[1].get_r8(&defs)?, op_args[0].get_expr()?)
+                (op_args[1].get_r8(constants)?, op_args[0].get_expr()?)
             };
             opcode |= r.number() << 4;
 
@@ -267,10 +266,10 @@ pub fn process(
         Operation::Ld | Operation::St | Operation::Ldd | Operation::Std => {
             let (r, i) = match op {
                 Operation::Ld | Operation::Ldd => {
-                    (op_args[0].get_r8(&defs)?, op_args[1].get_index()?)
+                    (op_args[0].get_r8(constants)?, op_args[1].get_index()?)
                 }
                 Operation::St | Operation::Std => {
-                    (op_args[1].get_r8(&defs)?, op_args[0].get_index()?)
+                    (op_args[1].get_r8(constants)?, op_args[0].get_index()?)
                 }
                 _ => {
                     bail!("Unsupported variant!");
@@ -316,7 +315,7 @@ pub fn process(
                     0b_0101_1101_1000
                 }
             } else {
-                let r = op_args[0].get_r8(&defs)?;
+                let r = op_args[0].get_r8(constants)?;
                 opcode |= r.number() << 4;
 
                 let i = op_args[1].get_index()?;
@@ -334,9 +333,9 @@ pub fn process(
         }
         Operation::In | Operation::Out => {
             let (r, k) = if let Operation::In = op {
-                (op_args[0].get_r8(&defs)?, op_args[1].get_expr()?)
+                (op_args[0].get_r8(constants)?, op_args[1].get_expr()?)
             } else {
-                (op_args[1].get_r8(&defs)?, op_args[0].get_expr()?)
+                (op_args[1].get_r8(constants)?, op_args[0].get_expr()?)
             };
             opcode |= r.number() << 4;
 

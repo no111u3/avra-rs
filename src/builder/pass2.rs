@@ -1,39 +1,61 @@
 //! Contains second pass builder of AVRA-rs
 
 use crate::builder::pass1::BuildResultPass1;
+use crate::context::Context;
 use crate::device::Device;
 use crate::directive::{Directive, DirectiveOps, Operand};
+use crate::expr::Expr;
 use crate::instruction::{process, register::Reg8};
 use crate::parser::{Item, Segment, SegmentType};
 
 use std::collections::HashMap;
 use std::str::FromStr;
 
-use crate::expr::{Expr, GetIdent};
 
 use failure::{bail, Error};
 
 use maplit::hashmap;
+use failure::_core::cell::RefCell;
 
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub struct ExecutionParameters<'a> {
+struct Pass2Context {
     // equals
-    pub equs: &'a HashMap<String, Expr>,
+    pub equs: HashMap<String, Expr>,
     // labels
-    pub labels: &'a HashMap<String, (SegmentType, u32)>,
+    pub labels: HashMap<String, (SegmentType, u32)>,
+    // defs
+    pub defs: RefCell<HashMap<String, Reg8>>,
     // device
-    pub device: &'a Device,
+    pub device: Device,
 }
 
-impl<'a> GetIdent for ExecutionParameters<'a> {
-    fn get_ident(&self, name: &String) -> Option<Expr> {
-        match self.equs.get(name) {
-            Some(expr) => Some(expr.clone()),
-            None => match self.labels.get(name) {
-                Some((_, address)) => Some(Expr::Const(*address as i64)),
-                None => None,
-            },
+impl Context for Pass2Context {
+    fn get_equ(&self, name: &String) -> Option<Expr> {
+        self.equs.get(name).map(|x| x.clone())
+    }
+
+    fn get_label(&self, name: &String) -> Option<(SegmentType, u32)> {
+        self.labels.get(name).map(|x| x.clone())
+    }
+
+    fn get_def(&self, name: &String) -> Option<Reg8> {
+        self.defs.borrow().get(name).map(|x| x.clone())
+    }
+
+    fn get_set(&self, _: &String) -> Option<Expr> {
+        None
+    }
+
+    fn set_def(&self, name: String, value: Reg8) -> Option<Reg8> {
+        if self.exist(&name) {
+            None
+        } else {
+            self.defs.borrow_mut().insert(name, value)
         }
+    }
+
+    fn set_set(&self, _: String, _: Expr) -> Option<Expr> {
+        None
     }
 }
 
@@ -51,12 +73,11 @@ pub fn build_pass_2(pass1: BuildResultPass1) -> Result<BuildResultPass2, Error> 
     let mut eeprom = vec![];
     let eeprom_start_address = 0x0;
 
-    let mut defs = hashmap! {};
-
-    let e_p = ExecutionParameters {
-        equs: &pass1.equs,
-        labels: &pass1.labels,
-        device: &pass1.device,
+    let context = Pass2Context {
+        equs: pass1.equs,
+        labels: pass1.labels,
+        defs: RefCell::new(hashmap!{}),
+        device: pass1.device,
     };
 
     for segment in pass1.segments {
@@ -81,7 +102,7 @@ pub fn build_pass_2(pass1: BuildResultPass1) -> Result<BuildResultPass2, Error> 
             SegmentType::Data => {}
         }
 
-        let fragment = pass_2_internal(&segment, &e_p, &mut defs)?;
+        let fragment = pass_2_internal(&segment, &context)?;
 
         match segment.t {
             SegmentType::Code => {
@@ -105,8 +126,7 @@ pub fn build_pass_2(pass1: BuildResultPass1) -> Result<BuildResultPass2, Error> 
 
 fn pass_2_internal(
     segment: &Segment,
-    e_p: &ExecutionParameters,
-    defs: &mut HashMap<String, Reg8>,
+    context: &Pass2Context,
 ) -> Result<Vec<u8>, Error> {
     let mut code_fragment = vec![];
 
@@ -115,8 +135,8 @@ fn pass_2_internal(
     for (line, item) in segment.items.iter() {
         match item {
             Item::Instruction(op, op_args) => {
-                if e_p.device.check_operation(op) {
-                    let complete_op = match process(&op, &op_args, cur_address, e_p, &defs) {
+                if context.device.check_operation(op) {
+                    let complete_op = match process(&op, &op_args, cur_address, context) {
                         Ok(ok) => ok,
                         Err(e) => bail!("{}, {}", e, line),
                     };
@@ -133,7 +153,7 @@ fn pass_2_internal(
             Item::Directive(d, d_op) => match d {
                 Directive::Db => {
                     if let DirectiveOps::OpList(_) = d_op {
-                        let data = match d_op.get_bytes(e_p) {
+                        let data = match d_op.get_bytes(context) {
                             Ok(ok) => ok,
                             Err(e) => bail!("{}, {}", e, line),
                         };
@@ -147,7 +167,7 @@ fn pass_2_internal(
                 }
                 Directive::Dw => {
                     if let DirectiveOps::OpList(_) = d_op {
-                        let data = match d_op.get_words(e_p) {
+                        let data = match d_op.get_words(context) {
                             Ok(ok) => ok,
                             Err(e) => bail!("{}, {}", e, line),
                         };
@@ -161,7 +181,7 @@ fn pass_2_internal(
                 }
                 Directive::Def => {
                     if let DirectiveOps::Assign(Expr::Ident(alias), Expr::Ident(register)) = d_op {
-                        if let Some(_) = defs.insert(
+                        if let Some(_) = context.set_def(
                             alias.to_lowercase(),
                             Reg8::from_str(register.to_lowercase().as_str()).unwrap(),
                         ) {
@@ -173,7 +193,7 @@ fn pass_2_internal(
                 Directive::Undef => {
                     if let DirectiveOps::OpList(values) = d_op {
                         if let Operand::E(Expr::Ident(name)) = &values[0] {
-                            if let None = defs.remove(name) {
+                            if let None = context.defs.borrow_mut().remove(name) {
                                 bail!("Identifier {} isn't defined, {}", name, line);
                             }
                         }

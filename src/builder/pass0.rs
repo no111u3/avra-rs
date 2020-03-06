@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 use crate::device::Device;
 use crate::expr::Expr;
-use crate::parser::{parse, ParseResult, Segment};
+use crate::parser::{ParseResult, Segment};
 
 use failure::Error;
 

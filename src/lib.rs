@@ -11,3 +11,4 @@ pub mod expr;
 pub mod instruction;
 pub mod parser;
 pub mod writer;
+pub mod context;

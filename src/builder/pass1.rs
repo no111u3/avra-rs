@@ -6,7 +6,7 @@ use crate::builder::pass0::BuildResultPass0;
 use crate::device::Device;
 use crate::directive::{Directive, DirectiveOps, Operand};
 use crate::expr::Expr;
-use crate::parser::{CodePoint, Item, ParseResult, Segment, SegmentType};
+use crate::parser::{CodePoint, Item, Segment, SegmentType};
 
 use failure::{bail, Error};
 

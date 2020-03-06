@@ -3,6 +3,8 @@
 use byteorder::{ByteOrder, LittleEndian};
 use failure::Fail;
 
+use crate::context::Context;
+
 /// Assembly uses constant expressions to avoid copying magic numbers around.
 /// Expr represents these constant expressions.
 ///
@@ -19,10 +21,6 @@ pub enum Expr {
     Unary(Box<UnaryExpr>),
 }
 
-pub trait GetIdent {
-    fn get_ident(&self, name: &String) -> Option<Expr>;
-}
-
 impl Expr {
     pub fn binary(left: Expr, operator: BinaryOperator, right: Expr) -> Expr {
         Expr::Binary(Box::new(BinaryExpr {
@@ -36,7 +34,7 @@ impl Expr {
         Expr::Unary(Box::new(UnaryExpr { expr, operator }))
     }
 
-    pub fn get_words(&self, constants: &dyn GetIdent) -> Result<[u8; 2], ExprRunError> {
+    pub fn get_words(&self, constants: &dyn Context) -> Result<[u8; 2], ExprRunError> {
         let value = self.run(constants)?;
         if value > 0xFFFF || value < -32768 {
             Err(ExprRunError::ResultDoesntFit(format!(
@@ -50,7 +48,7 @@ impl Expr {
         }
     }
 
-    pub fn get_byte(&self, constants: &dyn GetIdent) -> Result<u8, ExprRunError> {
+    pub fn get_byte(&self, constants: &dyn Context) -> Result<u8, ExprRunError> {
         let value = self.run(constants)?;
         if value > 0xFF || value < -128 {
             Err(ExprRunError::ResultDoesntFit(format!(
@@ -62,7 +60,7 @@ impl Expr {
         }
     }
 
-    pub fn get_bit_index(&self, constants: &dyn GetIdent) -> Result<u8, ExprRunError> {
+    pub fn get_bit_index(&self, constants: &dyn Context) -> Result<u8, ExprRunError> {
         let value = self.run(constants)?;
         if value > 7 {
             Err(ExprRunError::ResultDoesntFit(format!(
@@ -74,9 +72,9 @@ impl Expr {
         }
     }
 
-    pub fn run(&self, constants: &dyn GetIdent) -> Result<i64, ExprRunError> {
+    pub fn run(&self, constants: &dyn Context) -> Result<i64, ExprRunError> {
         match self {
-            Expr::Ident(ident) => match constants.get_ident(ident) {
+            Expr::Ident(ident) => match constants.get_expr(ident) {
                 Some(Expr::Const(address)) => Ok(address),
                 // TODO: check recursion for cross linked equs and other labels
                 Some(expr) => expr.run(constants),
