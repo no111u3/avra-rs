@@ -74,14 +74,30 @@ parser! {
         // expression
         pub rule expr() -> Expr
             = precedence! {
+            // precedence 4
+            x:(@) space() "||" space() y:@ { Expr::Binary(Box::new(BinaryExpr{left: x, operator: BinaryOperator::LogicalOr, right: y})) }
+            --
+            // precedence 5
+            x:(@) space() "&&" space() y:@ { Expr::Binary(Box::new(BinaryExpr{left: x, operator: BinaryOperator::LogicalAnd, right: y})) }
+            --
             // precedence 6
-            x:(@) space() "|" space() y:@ { Expr::Binary(Box::new(BinaryExpr{left: x, operator: BinaryOperator::Or, right: y})) }
+            x:(@) space() "|" space() y:@ { Expr::Binary(Box::new(BinaryExpr{left: x, operator: BinaryOperator::BitwiseOr, right: y})) }
             --
             // precedence 7
-            x:(@) space() "^" space() y:@ { Expr::Binary(Box::new(BinaryExpr{left: x, operator: BinaryOperator::Xor, right: y})) }
+            x:(@) space() "^" space() y:@ { Expr::Binary(Box::new(BinaryExpr{left: x, operator: BinaryOperator::BitwiseXor, right: y})) }
             --
             // precedence 8
-            x:(@) space() "&" space() y:@ { Expr::Binary(Box::new(BinaryExpr{left: x, operator: BinaryOperator::And, right: y})) }
+            x:(@) space() "&" space() y:@ { Expr::Binary(Box::new(BinaryExpr{left: x, operator: BinaryOperator::BitwiseAnd, right: y})) }
+            --
+            // precedence 9
+            x:(@) space() "==" space() y:@ { Expr::Binary(Box::new(BinaryExpr{left: x, operator: BinaryOperator::Equal, right: y})) }
+            x:(@) space() "!=" space() y:@ { Expr::Binary(Box::new(BinaryExpr{left: x, operator: BinaryOperator::NotEqual, right: y})) }
+            --
+            // precedence 10
+            x:(@) space() "<" space() y:@ { Expr::Binary(Box::new(BinaryExpr{left: x, operator: BinaryOperator::LessThan, right: y})) }
+            x:(@) space() "<=" space() y:@ { Expr::Binary(Box::new(BinaryExpr{left: x, operator: BinaryOperator::LessOrEqual, right: y})) }
+            x:(@) space() ">" space() y:@ { Expr::Binary(Box::new(BinaryExpr{left: x, operator: BinaryOperator::GreaterThan, right: y})) }
+            x:(@) space() ">=" space() y:@ { Expr::Binary(Box::new(BinaryExpr{left: x, operator: BinaryOperator::GreaterOrEqual, right: y})) }
             --
             // precedence 11
             x:(@) space() "<<" space() y:@ { Expr::Binary(Box::new(BinaryExpr{left: x, operator: BinaryOperator::ShiftLeft, right: y})) }
@@ -343,7 +359,7 @@ mod parser_tests {
                             operator: BinaryOperator::ShiftLeft,
                             right: Expr::Const(4)
                         })),
-                        operator: BinaryOperator::Or,
+                        operator: BinaryOperator::BitwiseOr,
                         right: Expr::Binary(Box::new(BinaryExpr {
                             left: Expr::Const(1),
                             operator: BinaryOperator::ShiftLeft,
@@ -395,7 +411,7 @@ mod parser_tests {
                             operator: BinaryOperator::ShiftLeft,
                             right: Expr::Const(4)
                         })),
-                        operator: BinaryOperator::Or,
+                        operator: BinaryOperator::BitwiseOr,
                         right: Expr::Binary(Box::new(BinaryExpr {
                             left: Expr::Const(1),
                             operator: BinaryOperator::ShiftLeft,

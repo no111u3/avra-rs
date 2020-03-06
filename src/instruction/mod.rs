@@ -520,7 +520,7 @@ mod parser_tests {
                             operator: BinaryOperator::ShiftLeft,
                             right: Expr::Const(4)
                         })),
-                        operator: BinaryOperator::Or,
+                        operator: BinaryOperator::BitwiseOr,
                         right: Expr::Binary(Box::new(BinaryExpr {
                             left: Expr::Const(1),
                             operator: BinaryOperator::ShiftLeft,
@@ -572,7 +572,7 @@ mod parser_tests {
                             operator: BinaryOperator::ShiftLeft,
                             right: Expr::Const(4)
                         })),
-                        operator: BinaryOperator::Or,
+                        operator: BinaryOperator::BitwiseOr,
                         right: Expr::Binary(Box::new(BinaryExpr {
                             left: Expr::Const(1),
                             operator: BinaryOperator::ShiftLeft,

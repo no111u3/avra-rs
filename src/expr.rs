@@ -170,11 +170,19 @@ impl Expr {
                             }
                         }
                     }
-                    BinaryOperator::And => Ok(left & right),
-                    BinaryOperator::Or => Ok(left | right),
-                    BinaryOperator::Xor => Ok(left ^ right),
+                    BinaryOperator::BitwiseAnd => Ok(left & right),
+                    BinaryOperator::BitwiseOr => Ok(left | right),
+                    BinaryOperator::BitwiseXor => Ok(left ^ right),
                     BinaryOperator::ShiftLeft => Ok(left << right),
                     BinaryOperator::ShiftRight => Ok(left >> right),
+                    BinaryOperator::LessThan => Ok((left < right) as i64),
+                    BinaryOperator::LessOrEqual => Ok((left <= right) as i64),
+                    BinaryOperator::GreaterThan => Ok((left > right) as i64),
+                    BinaryOperator::GreaterOrEqual => Ok((left >= right) as i64),
+                    BinaryOperator::Equal => Ok((left == right) as i64),
+                    BinaryOperator::NotEqual => Ok((left < right) as i64),
+                    BinaryOperator::LogicalAnd => Ok((left != 0 && right != 0) as i64),
+                    BinaryOperator::LogicalOr => Ok((left != 0 || right != 0) as i64),
                 }
             }
             Expr::Unary(unary) => match unary.operator {
@@ -229,11 +237,19 @@ pub enum BinaryOperator {
     Mul,
     Div,
     Rem,
-    And,
-    Xor,
-    Or,
+    BitwiseAnd,
+    BitwiseXor,
+    BitwiseOr,
     ShiftLeft,
     ShiftRight,
+    LessThan,
+    LessOrEqual,
+    GreaterThan,
+    GreaterOrEqual,
+    Equal,
+    NotEqual,
+    LogicalAnd,
+    LogicalOr,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -313,7 +329,7 @@ mod parser_tests {
                     operator: BinaryOperator::ShiftLeft,
                     right: Expr::Const(2),
                 })),
-                operator: BinaryOperator::Or,
+                operator: BinaryOperator::BitwiseOr,
                 right: Expr::Binary(Box::new(BinaryExpr {
                     left: Expr::Const(1),
                     operator: BinaryOperator::ShiftLeft,

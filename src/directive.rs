@@ -5,8 +5,7 @@ use strum_macros::{Display, EnumString};
 use crate::device::{Device, DEVICES};
 use crate::expr::Expr;
 use crate::parser::{
-    parse_file_internal, CodePoint, Item, NextItem, ParseContext, ParseResult, Paths, Segment,
-    SegmentType,
+    parse_file_internal, CodePoint, Item, NextItem, ParseContext, ParseResult, Segment, SegmentType,
 };
 
 use crate::context::Context;
@@ -66,7 +65,7 @@ pub enum Directive {
     Endif,
     /// Outputs an error message (unsupported)
     Error,
-    /// Conditional assembly - begin of conditional block (partially)
+    /// Conditional assembly - begin of conditional block
     If,
     IfDef,
     IfNDef,
@@ -97,13 +96,17 @@ impl Directive {
         opts: &DirectiveOps,
         result: &mut ParseResult,
         curr_segment: Segment,
-        current_path: &PathBuf,
-        paths: &mut Paths,
+        context: &ParseContext,
         point: CodePoint,
     ) -> Result<(NextItem, Segment), Error> {
         let mut curr_segment = curr_segment.clone();
         let mut current_type = curr_segment.t;
         let mut next_item = NextItem::NewLine;
+
+        let ParseContext {
+            current_path,
+            include_paths,
+        } = context;
 
         match self {
             Directive::Db
@@ -187,7 +190,7 @@ impl Directive {
                     if let Operand::S(include) = &values[0] {
                         let context = ParseContext {
                             current_path: PathBuf::from(include),
-                            include_paths: paths.clone(),
+                            include_paths: include_paths.clone(),
                         };
                         curr_segment = parse_file_internal(result, curr_segment, context)?;
                     } else {
@@ -208,8 +211,8 @@ impl Directive {
                         } else {
                             path
                         };
-                        if !paths.contains(&path) {
-                            paths.insert(path);
+                        if !include_paths.borrow_mut().contains(&path) {
+                            include_paths.borrow_mut().insert(path);
                         }
                     } else {
                         bail!(
@@ -221,6 +224,30 @@ impl Directive {
                 } else {
                     bail!(
                         "wrong format for .includepath, expected: {} in {}",
+                        opts,
+                        point,
+                    );
+                }
+            }
+            Directive::If => {
+                if let DirectiveOps::OpList(values) = &opts {
+                    if let Operand::E(expr) = &values[0] {
+                        let value = expr.run(result)?;
+                        if value == 0 {
+                            next_item = NextItem::EndIf;
+                        }
+                    } else {
+                        bail!(
+                            "wrong format for .{}, expected: {} in {}",
+                            self,
+                            opts,
+                            point,
+                        );
+                    }
+                } else {
+                    bail!(
+                        "wrong format for .{}, expected: {} in {}",
+                        self,
                         opts,
                         point,
                     );
@@ -950,7 +977,7 @@ mod parser_tests {
     }
 
     #[test]
-    fn check_directive_ifdef_ifndef_else_define() {
+    fn check_directive_if_ifdef_ifndef_else_define() {
         let parse_result = parse_str(".define T\n.ifndef T\n.endif");
         assert_eq!(
             parse_result.unwrap(),
@@ -1035,6 +1062,17 @@ mod parser_tests {
                 segments: vec![],
                 equs: HashMap::new(),
                 defines: hashmap! { "X".to_string() => Expr::Const(0), "Z".to_string() => Expr::Const(0) },
+                device: Some(Device::new(0)),
+            }
+        );
+
+        let parse_result = parse_str(".if 4 > 5\n.define X\n.else\n.define Y\n.endif\n.define Z");
+        assert_eq!(
+            parse_result.unwrap(),
+            ParseResult {
+                segments: vec![],
+                equs: HashMap::new(),
+                defines: hashmap! { "Y".to_string() => Expr::Const(0), "Z".to_string() => Expr::Const(0) },
                 device: Some(Device::new(0)),
             }
         );

@@ -1,11 +1,14 @@
 //! Contains content parser of AVRA-rs
 
+use std::cell::RefCell;
 use std::collections::{BTreeSet, HashMap};
 use std::fs::File;
 use std::io::Read;
+use std::iter::Iterator;
 use std::path::PathBuf;
 use std::{env, fmt};
 
+use crate::context::Context;
 use crate::device::Device;
 use crate::directive::{Directive, DirectiveOps};
 use crate::document::{document, Document};
@@ -14,7 +17,6 @@ use crate::instruction::{operation::Operation, InstructionOps};
 
 use failure::{bail, Error};
 use maplit::btreeset;
-use std::iter::Iterator;
 use strum_macros::Display;
 
 pub type Paths = BTreeSet<PathBuf>;
@@ -81,6 +83,16 @@ pub struct ParseResult {
     pub device: Option<Device>,
 }
 
+impl Context for ParseResult {
+    fn get_define(&self, name: &String) -> Option<Expr> {
+        self.defines.get(name).map(|x| x.clone())
+    }
+
+    fn get_equ(&self, name: &String) -> Option<Expr> {
+        self.equs.get(name).map(|x| x.clone())
+    }
+}
+
 impl ParseResult {
     pub fn new() -> Self {
         Self {
@@ -95,7 +107,7 @@ impl ParseResult {
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct ParseContext {
     pub current_path: PathBuf,
-    pub include_paths: Paths,
+    pub include_paths: RefCell<Paths>,
 }
 
 pub fn parse_str(input: &str) -> Result<ParseResult, Error> {
@@ -105,7 +117,7 @@ pub fn parse_str(input: &str) -> Result<ParseResult, Error> {
 
     let context = ParseContext {
         current_path: env::current_dir()?,
-        include_paths: btreeset! {},
+        include_paths: RefCell::new(btreeset! {}),
     };
 
     let curr_segment = parse(input, &mut result, Segment::new(current_type), context)?;
@@ -124,7 +136,7 @@ pub fn parse_file(path: PathBuf, paths: Paths) -> Result<ParseResult, Error> {
 
     let context = ParseContext {
         current_path: path,
-        include_paths: paths,
+        include_paths: RefCell::new(paths),
     };
 
     let curr_segment = parse_file_internal(&mut result, Segment::new(current_type), context)?;
@@ -145,6 +157,7 @@ pub fn parse_file_internal(
         current_path,
         include_paths,
     } = context;
+    let include_paths = include_paths.borrow_mut();
 
     let current_path = if !current_path.as_path().exists() {
         let mut new_path = PathBuf::new();
@@ -184,6 +197,8 @@ pub fn parse_file_internal(
 
     let mut source = String::new();
     file.read_to_string(&mut source)?;
+
+    let include_paths = RefCell::new(include_paths);
 
     let context = ParseContext {
         current_path,
@@ -260,13 +275,6 @@ pub fn parse(
 
     let mut next_item = NextItem::NewLine;
 
-    let ParseContext {
-        current_path,
-        include_paths,
-    } = context;
-
-    let mut paths = include_paths.clone();
-
     loop {
         if let Some((line_num, line)) = skip(&mut lines, next_item) {
             next_item = NextItem::NewLine; // clear conditional flag to typical state
@@ -304,8 +312,7 @@ pub fn parse(
                             &d_op_args,
                             result,
                             curr_segment,
-                            &current_path,
-                            &mut paths,
+                            &context,
                             CodePoint { line_num, num: 2 },
                         )?;
                         next_item = item;
@@ -704,7 +711,7 @@ mod parser_tests {
                                             operator: BinaryOperator::ShiftLeft,
                                             right: Expr::Const(2),
                                         })),
-                                        operator: BinaryOperator::Or,
+                                        operator: BinaryOperator::BitwiseOr,
                                         right: Expr::Binary(Box::new(BinaryExpr {
                                             left: Expr::Const(1),
                                             operator: BinaryOperator::ShiftLeft,

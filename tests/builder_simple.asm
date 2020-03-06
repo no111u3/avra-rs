@@ -1,4 +1,7 @@
 .include "m48def.inc" ; - include device specific include file
+.if 0
+        bla bla bla
+.endif
 ; begin of file
         .dseg
 counter:

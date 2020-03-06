@@ -6,10 +6,18 @@ pub trait Context {
     fn get_define(&self, _name: &String) -> Option<Expr> {
         None
     }
-    fn get_equ(&self, name: &String) -> Option<Expr>;
-    fn get_label(&self, name: &String) -> Option<(SegmentType, u32)>;
-    fn get_def(&self, name: &String) -> Option<Reg8>;
-    fn get_set(&self, name: &String) -> Option<Expr>;
+    fn get_equ(&self, _name: &String) -> Option<Expr> {
+        None
+    }
+    fn get_label(&self, _name: &String) -> Option<(SegmentType, u32)> {
+        None
+    }
+    fn get_def(&self, _name: &String) -> Option<Reg8> {
+        None
+    }
+    fn get_set(&self, _name: &String) -> Option<Expr> {
+        None
+    }
 
     fn set_define(&self, _name: String, _value: Expr) -> Option<Expr> {
         None
@@ -20,7 +28,9 @@ pub trait Context {
     fn set_label(&self, _name: String, _value: (SegmentType, u32)) -> Option<(SegmentType, u32)> {
         None
     }
-    fn set_def(&self, name: String, value: Reg8) -> Option<Reg8>;
+    fn set_def(&self, _name: String, _value: Reg8) -> Option<Reg8> {
+        None
+    }
 
     fn get_expr(&self, name: &String) -> Option<Expr> {
         if let Some(expr) = self.get_define(name) {
