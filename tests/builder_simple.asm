@@ -2,8 +2,10 @@
 ; begin of file
         .dseg
 counter:
-        .byte 2
-state:  .byte 4
+        .set size = 2
+        .byte size
+        .set size = size + 2
+state:  .byte size
 ; start code segment
         .cseg
         .org 0x0 ; test no action offset

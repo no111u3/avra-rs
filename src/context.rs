@@ -13,7 +13,6 @@ pub trait Context {
     fn set_equ(&self, _name: String, _value: Expr) -> Option<Expr> { None }
     fn set_label(&self, _name: String, _value: (SegmentType, u32)) -> Option<(SegmentType, u32)> { None }
     fn set_def(&self, name: String, value: Reg8) -> Option<Reg8>;
-    fn set_set(&self, name: String, value: Expr) -> Option<Expr>;
 
     fn get_expr(&self, name: &String) -> Option<Expr> {
         if let Some(expr) = self.get_define(name) {

@@ -54,7 +54,7 @@ pub enum Directive {
     NoList,
     /// Set program origin
     Org,
-    /// Set a symbol to an expression (unsupported)
+    /// Set a symbol to an expression
     Set,
     /// Define a preprocessor macro
     Define,

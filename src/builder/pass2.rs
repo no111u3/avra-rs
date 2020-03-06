@@ -15,18 +15,20 @@ use std::str::FromStr;
 use failure::{bail, Error};
 
 use maplit::hashmap;
-use failure::_core::cell::RefCell;
+use std::cell::RefCell;
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 struct Pass2Context {
     // equals
-    pub equs: HashMap<String, Expr>,
+    equs: HashMap<String, Expr>,
     // labels
-    pub labels: HashMap<String, (SegmentType, u32)>,
+    labels: HashMap<String, (SegmentType, u32)>,
     // defs
-    pub defs: RefCell<HashMap<String, Reg8>>,
+    defs: RefCell<HashMap<String, Reg8>>,
+    // sets
+    sets: RefCell<HashMap<String, Expr>>,
     // device
-    pub device: Device,
+    device: Device,
 }
 
 impl Context for Pass2Context {
@@ -42,8 +44,8 @@ impl Context for Pass2Context {
         self.defs.borrow().get(name).map(|x| x.clone())
     }
 
-    fn get_set(&self, _: &String) -> Option<Expr> {
-        None
+    fn get_set(&self, name: &String) -> Option<Expr> {
+        self.sets.borrow().get(name).map(|x| x.clone())
     }
 
     fn set_def(&self, name: String, value: Reg8) -> Option<Reg8> {
@@ -52,10 +54,6 @@ impl Context for Pass2Context {
         } else {
             self.defs.borrow_mut().insert(name, value)
         }
-    }
-
-    fn set_set(&self, _: String, _: Expr) -> Option<Expr> {
-        None
     }
 }
 
@@ -77,6 +75,7 @@ pub fn build_pass_2(pass1: BuildResultPass1) -> Result<BuildResultPass2, Error> 
         equs: pass1.equs,
         labels: pass1.labels,
         defs: RefCell::new(hashmap!{}),
+        sets: RefCell::new(hashmap!{}),
         device: pass1.device,
     };
 
@@ -196,6 +195,22 @@ fn pass_2_internal(
                             if let None = context.defs.borrow_mut().remove(name) {
                                 bail!("Identifier {} isn't defined, {}", name, line);
                             }
+                        }
+                    }
+                }
+                Directive::Set => {
+                    if let DirectiveOps::Assign(Expr::Ident(name), expr) = d_op {
+                        let value = expr.run(context)?;
+                        if context.exist(name) {
+                            let mut sets = context.sets.borrow_mut();
+                            if let Some(_) = sets.get(name) {
+                                sets.insert(name.clone(), Expr::Const(value));
+                            } else {
+                                // TODO: add display current string of mistake and previous location
+                                bail!("Identifier {} is used twice, {}", name, line);
+                            }
+                        } else {
+                            context.sets.borrow_mut().insert(name.clone(), Expr::Const(value));
                         }
                     }
                 }
