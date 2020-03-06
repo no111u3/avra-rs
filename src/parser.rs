@@ -1,10 +1,10 @@
 //! Contains content parser of AVRA-rs
 
 use std::collections::{BTreeSet, HashMap};
-use std::fmt;
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
+use std::{env, fmt};
 
 use crate::device::Device;
 use crate::directive::{Directive, DirectiveOps};
@@ -92,12 +92,23 @@ impl ParseResult {
     }
 }
 
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct ParseContext {
+    pub current_path: PathBuf,
+    pub include_paths: Paths,
+}
+
 pub fn parse_str(input: &str) -> Result<ParseResult, Error> {
     let mut result = ParseResult::new();
 
     let current_type = SegmentType::Code;
 
-    let curr_segment = parse(input, &mut result, Segment::new(current_type), btreeset! {})?;
+    let context = ParseContext {
+        current_path: env::current_dir()?,
+        include_paths: btreeset! {},
+    };
+
+    let curr_segment = parse(input, &mut result, Segment::new(current_type), context)?;
 
     if !curr_segment.is_empty() {
         result.segments.push(curr_segment);
@@ -111,7 +122,12 @@ pub fn parse_file(path: PathBuf, paths: Paths) -> Result<ParseResult, Error> {
 
     let current_type = SegmentType::Code;
 
-    let curr_segment = parse_file_internal(path, &mut result, Segment::new(current_type), paths)?;
+    let context = ParseContext {
+        current_path: path,
+        include_paths: paths,
+    };
+
+    let curr_segment = parse_file_internal(&mut result, Segment::new(current_type), context)?;
 
     if !curr_segment.is_empty() {
         result.segments.push(curr_segment);
@@ -121,16 +137,20 @@ pub fn parse_file(path: PathBuf, paths: Paths) -> Result<ParseResult, Error> {
 }
 
 pub fn parse_file_internal(
-    path: PathBuf,
     result: &mut ParseResult,
     curr_segment: Segment,
-    paths: Paths,
+    context: ParseContext,
 ) -> Result<Segment, Error> {
-    let path = if !path.as_path().exists() {
+    let ParseContext {
+        current_path,
+        include_paths,
+    } = context;
+
+    let current_path = if !current_path.as_path().exists() {
         let mut new_path = PathBuf::new();
-        for parent in paths.iter() {
+        for parent in include_paths.iter() {
             let mut full_path = parent.clone();
-            full_path.push(path.clone());
+            full_path.push(current_path.clone());
             if full_path.as_path().exists() {
                 new_path = full_path;
                 break;
@@ -138,34 +158,39 @@ pub fn parse_file_internal(
         }
 
         if new_path == PathBuf::new() {
-            path
+            current_path
         } else {
             new_path
         }
     } else {
-        path
+        current_path
     };
 
-    let mut file = match File::open(&path) {
+    let mut file = match File::open(&current_path) {
         Ok(file) => file,
         Err(err) => bail!(
             "Cannot read file {} because: {}",
-            path.to_string_lossy(),
+            current_path.to_string_lossy(),
             err
         ),
     };
 
-    let mut paths = paths.clone();
-    if let Some(parent) = path.parent() {
-        if let None = paths.get(parent) {
-            paths.insert(parent.to_path_buf());
+    let mut include_paths = include_paths.clone();
+    if let Some(parent) = current_path.parent() {
+        if let None = include_paths.get(parent) {
+            include_paths.insert(parent.to_path_buf());
         }
     }
 
     let mut source = String::new();
     file.read_to_string(&mut source)?;
 
-    let curr_segment = parse(source.as_str(), result, curr_segment, paths)?;
+    let context = ParseContext {
+        current_path,
+        include_paths,
+    };
+
+    let curr_segment = parse(source.as_str(), result, curr_segment, context)?;
 
     Ok(curr_segment)
 }
@@ -227,13 +252,20 @@ pub fn parse(
     input: &str,
     result: &mut ParseResult,
     curr_segment: Segment,
-    paths: Paths,
+    context: ParseContext,
 ) -> Result<Segment, Error> {
     let mut curr_segment = curr_segment.clone();
 
     let mut lines = input.lines().enumerate();
 
     let mut next_item = NextItem::NewLine;
+
+    let ParseContext {
+        current_path,
+        include_paths,
+    } = context;
+
+    let mut paths = include_paths.clone();
 
     loop {
         if let Some((line_num, line)) = skip(&mut lines, next_item) {
@@ -272,7 +304,8 @@ pub fn parse(
                             &d_op_args,
                             result,
                             curr_segment,
-                            paths.clone(),
+                            &current_path,
+                            &mut paths,
                             CodePoint { line_num, num: 2 },
                         )?;
                         next_item = item;

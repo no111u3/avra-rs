@@ -5,7 +5,8 @@ use strum_macros::{Display, EnumString};
 use crate::device::{Device, DEVICES};
 use crate::expr::Expr;
 use crate::parser::{
-    parse_file_internal, CodePoint, Item, NextItem, ParseResult, Paths, Segment, SegmentType,
+    parse_file_internal, CodePoint, Item, NextItem, ParseContext, ParseResult, Paths, Segment,
+    SegmentType,
 };
 
 use crate::context::Context;
@@ -96,7 +97,8 @@ impl Directive {
         opts: &DirectiveOps,
         result: &mut ParseResult,
         curr_segment: Segment,
-        paths: Paths,
+        current_path: &PathBuf,
+        paths: &mut Paths,
         point: CodePoint,
     ) -> Result<(NextItem, Segment), Error> {
         let mut curr_segment = curr_segment.clone();
@@ -183,17 +185,45 @@ impl Directive {
             Directive::Include => {
                 if let DirectiveOps::OpList(values) = &opts {
                     if let Operand::S(include) = &values[0] {
-                        curr_segment = parse_file_internal(
-                            PathBuf::from(include),
-                            result,
-                            curr_segment,
-                            paths.clone(),
-                        )?;
+                        let context = ParseContext {
+                            current_path: PathBuf::from(include),
+                            include_paths: paths.clone(),
+                        };
+                        curr_segment = parse_file_internal(result, curr_segment, context)?;
                     } else {
                         bail!("wrong format for .include, expected: {} in {}", opts, point,);
                     }
                 } else {
                     bail!("wrong format for .include, expected: {} in {}", opts, point,);
+                }
+            }
+            Directive::IncludePath => {
+                if let DirectiveOps::OpList(values) = &opts {
+                    if let Operand::S(include) = &values[0] {
+                        let path = PathBuf::from(include);
+                        let path = if path.is_relative() {
+                            let mut current_path = current_path.parent().unwrap().to_path_buf();
+                            current_path.push(path);
+                            current_path
+                        } else {
+                            path
+                        };
+                        if !paths.contains(&path) {
+                            paths.insert(path);
+                        }
+                    } else {
+                        bail!(
+                            "wrong format for .includepath, expected: {} in {}",
+                            opts,
+                            point,
+                        );
+                    }
+                } else {
+                    bail!(
+                        "wrong format for .includepath, expected: {} in {}",
+                        opts,
+                        point,
+                    );
                 }
             }
             Directive::IfNDef | Directive::IfDef => {
@@ -882,6 +912,39 @@ mod parser_tests {
                 },
                 defines: hashmap! {},
                 device: Some(DEVICES.get("ATmega48").unwrap().clone()),
+            }
+        );
+    }
+
+    #[test]
+    fn check_directive_include_path() {
+        let parse_result = parse_file(PathBuf::from("tests/include_path_test.asm"), btreeset! {});
+
+        assert_eq!(
+            parse_result.unwrap(),
+            ParseResult {
+                segments: vec![Segment {
+                    items: vec![(
+                        CodePoint {
+                            line_num: 4,
+                            num: 2
+                        },
+                        Item::Instruction(
+                            Operation::In,
+                            vec![
+                                InstructionOps::R8(Reg8::R0),
+                                InstructionOps::E(Expr::Ident("SREG".to_string()))
+                            ]
+                        )
+                    ),],
+                    t: SegmentType::Code,
+                    address: 0
+                }],
+                equs: hashmap! {
+                    "SREG".to_string() => Expr::Const(0x3f),
+                },
+                defines: hashmap! {},
+                device: Some(DEVICES.get("ATmega88").unwrap().clone()),
             }
         );
     }
