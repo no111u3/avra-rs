@@ -6,6 +6,7 @@ use std::fs::File;
 use std::io::Read;
 use std::iter::Iterator;
 use std::path::PathBuf;
+use std::rc::Rc;
 use std::{env, fmt};
 
 use crate::context::Context;
@@ -16,7 +17,7 @@ use crate::expr::Expr;
 use crate::instruction::{operation::Operation, InstructionOps};
 
 use failure::{bail, Error};
-use maplit::btreeset;
+use maplit::{btreeset, hashmap};
 use strum_macros::Display;
 
 pub type Paths = BTreeSet<PathBuf>;
@@ -83,16 +84,6 @@ pub struct ParseResult {
     pub device: Option<Device>,
 }
 
-impl Context for ParseResult {
-    fn get_define(&self, name: &String) -> Option<Expr> {
-        self.defines.get(name).map(|x| x.clone())
-    }
-
-    fn get_equ(&self, name: &String) -> Option<Expr> {
-        self.equs.get(name).map(|x| x.clone())
-    }
-}
-
 impl ParseResult {
     pub fn new() -> Self {
         Self {
@@ -108,55 +99,112 @@ impl ParseResult {
 pub struct ParseContext {
     pub current_path: PathBuf,
     pub include_paths: RefCell<Paths>,
+    // equals
+    pub equs: Rc<RefCell<HashMap<String, Expr>>>,
+    // defines
+    pub defines: Rc<RefCell<HashMap<String, Expr>>>,
+    // device
+    pub device: Rc<RefCell<Option<Device>>>,
+    // segments
+    pub segments: Rc<RefCell<Vec<Rc<RefCell<Segment>>>>>,
+}
+
+impl ParseContext {
+    pub fn new(current_path: PathBuf, include_paths: RefCell<Paths>) -> Self {
+        Self {
+            current_path,
+            include_paths,
+            defines: Rc::new(RefCell::new(hashmap! {})),
+            equs: Rc::new(RefCell::new(hashmap! {})),
+            device: Rc::new(RefCell::new(Some(Device::new(0)))),
+            segments: Rc::new(RefCell::new(vec![Rc::new(RefCell::new(Segment::new(
+                SegmentType::Code,
+            )))])),
+        }
+    }
+
+    pub fn add_segment(&self, segment: Segment) {
+        self.segments
+            .borrow_mut()
+            .push(Rc::new(RefCell::new(segment)));
+    }
+
+    pub fn last_segment(&self) -> Option<Rc<RefCell<Segment>>> {
+        if let Some(item) = self.segments.borrow().last() {
+            Some(Rc::clone(item))
+        } else {
+            None
+        }
+    }
+
+    pub fn push_to_last(&self, item: (CodePoint, Item)) {
+        self.last_segment().unwrap().borrow_mut().items.push(item);
+    }
+
+    pub fn as_parse_result(&self) -> ParseResult {
+        let segments = self
+            .segments
+            .borrow()
+            .iter()
+            .filter(|x| !x.borrow().is_empty())
+            .map(|x| x.borrow().clone())
+            .collect();
+        let equs = self.equs.borrow().clone();
+        let defines = self.defines.borrow().clone();
+        let device = self.device.borrow().clone();
+
+        ParseResult {
+            segments,
+            equs,
+            defines,
+            device,
+        }
+    }
+}
+
+impl Context for ParseContext {
+    fn get_define(&self, name: &String) -> Option<Expr> {
+        self.defines.borrow().get(name).map(|x| x.clone())
+    }
+
+    fn get_equ(&self, name: &String) -> Option<Expr> {
+        self.equs.borrow().get(name).map(|x| x.clone())
+    }
+
+    fn set_define(&self, name: String, expr: Expr) -> Option<Expr> {
+        self.defines.borrow_mut().insert(name, expr)
+    }
+
+    fn set_equ(&self, name: String, expr: Expr) -> Option<Expr> {
+        self.equs.borrow_mut().insert(name, expr)
+    }
 }
 
 pub fn parse_str(input: &str) -> Result<ParseResult, Error> {
-    let mut result = ParseResult::new();
+    let context = ParseContext::new(env::current_dir()?, RefCell::new(btreeset! {}));
 
-    let current_type = SegmentType::Code;
+    parse(input, &context)?;
 
-    let context = ParseContext {
-        current_path: env::current_dir()?,
-        include_paths: RefCell::new(btreeset! {}),
-    };
-
-    let curr_segment = parse(input, &mut result, Segment::new(current_type), context)?;
-
-    if !curr_segment.is_empty() {
-        result.segments.push(curr_segment);
-    }
-
-    Ok(result)
+    Ok(context.as_parse_result())
 }
 
 pub fn parse_file(path: PathBuf, paths: Paths) -> Result<ParseResult, Error> {
-    let mut result = ParseResult::new();
+    let context = ParseContext::new(path, RefCell::new(paths));
 
-    let current_type = SegmentType::Code;
+    parse_file_internal(&context)?;
 
-    let context = ParseContext {
-        current_path: path,
-        include_paths: RefCell::new(paths),
-    };
-
-    let curr_segment = parse_file_internal(&mut result, Segment::new(current_type), context)?;
-
-    if !curr_segment.is_empty() {
-        result.segments.push(curr_segment);
-    }
-
-    Ok(result)
+    Ok(context.as_parse_result())
 }
 
-pub fn parse_file_internal(
-    result: &mut ParseResult,
-    curr_segment: Segment,
-    context: ParseContext,
-) -> Result<Segment, Error> {
+pub fn parse_file_internal(context: &ParseContext) -> Result<(), Error> {
     let ParseContext {
         current_path,
         include_paths,
-    } = context;
+        defines,
+        equs,
+        device,
+        segments,
+    } = context.clone();
     let include_paths = include_paths.borrow_mut();
 
     let current_path = if !current_path.as_path().exists() {
@@ -203,11 +251,15 @@ pub fn parse_file_internal(
     let context = ParseContext {
         current_path,
         include_paths,
+        defines,
+        equs,
+        device,
+        segments,
     };
 
-    let curr_segment = parse(source.as_str(), result, curr_segment, context)?;
+    parse(source.as_str(), &context)?;
 
-    Ok(curr_segment)
+    Ok(())
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -263,14 +315,7 @@ fn skip<'a>(
     }
 }
 
-pub fn parse(
-    input: &str,
-    result: &mut ParseResult,
-    curr_segment: Segment,
-    context: ParseContext,
-) -> Result<Segment, Error> {
-    let mut curr_segment = curr_segment.clone();
-
+pub fn parse(input: &str, context: &ParseContext) -> Result<(), Error> {
     let mut lines = input.lines().enumerate();
 
     let mut next_item = NextItem::NewLine;
@@ -283,19 +328,18 @@ pub fn parse(
             if let Ok(item) = parsed_item {
                 match item {
                     Document::Label(name) => {
-                        curr_segment
-                            .items
-                            .push((CodePoint { line_num, num: 1 }, Item::Label(name)));
+                        context.push_to_last((CodePoint { line_num, num: 1 }, Item::Label(name)));
                     }
                     Document::CodeLine(label, op, op_args) => {
                         if let Some(label) = *label {
                             if let Document::Label(name) = label {
-                                curr_segment
-                                    .items
-                                    .push((CodePoint { line_num, num: 1 }, Item::Label(name)));
+                                context.push_to_last((
+                                    CodePoint { line_num, num: 1 },
+                                    Item::Label(name),
+                                ));
                             }
                         }
-                        curr_segment.items.push((
+                        context.last_segment().unwrap().borrow_mut().items.push((
                             CodePoint { line_num, num: 2 },
                             Item::Instruction(op, op_args),
                         ));
@@ -303,20 +347,14 @@ pub fn parse(
                     Document::DirectiveLine(label, d, d_op_args) => {
                         if let Some(label) = *label {
                             if let Document::Label(name) = label {
-                                curr_segment
-                                    .items
-                                    .push((CodePoint { line_num, num: 1 }, Item::Label(name)));
+                                context.push_to_last((
+                                    CodePoint { line_num, num: 1 },
+                                    Item::Label(name),
+                                ));
                             }
                         }
-                        let (item, segment) = d.parse(
-                            &d_op_args,
-                            result,
-                            curr_segment,
-                            &context,
-                            CodePoint { line_num, num: 2 },
-                        )?;
+                        let item = d.parse(&d_op_args, &context, CodePoint { line_num, num: 2 })?;
                         next_item = item;
-                        curr_segment = segment;
                     }
                     Document::EmptyLine => {}
                     _ => {}
@@ -333,7 +371,7 @@ pub fn parse(
         }
     }
 
-    Ok(curr_segment)
+    Ok(())
 }
 
 #[cfg(test)]

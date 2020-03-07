@@ -5,12 +5,13 @@ use strum_macros::{Display, EnumString};
 use crate::device::{Device, DEVICES};
 use crate::expr::Expr;
 use crate::parser::{
-    parse_file_internal, CodePoint, Item, NextItem, ParseContext, ParseResult, Segment, SegmentType,
+    parse_file_internal, CodePoint, Item, NextItem, ParseContext, Segment, SegmentType,
 };
 
 use crate::context::Context;
 use failure::{bail, Error};
 use std::path::PathBuf;
+use std::rc::Rc;
 
 #[derive(Clone, PartialEq, Eq, Debug, EnumString, Display)]
 #[strum(serialize_all = "lowercase")]
@@ -94,18 +95,18 @@ impl Directive {
     pub fn parse(
         &self,
         opts: &DirectiveOps,
-        result: &mut ParseResult,
-        curr_segment: Segment,
         context: &ParseContext,
         point: CodePoint,
-    ) -> Result<(NextItem, Segment), Error> {
-        let mut curr_segment = curr_segment.clone();
-        let mut current_type = curr_segment.t;
+    ) -> Result<NextItem, Error> {
         let mut next_item = NextItem::NewLine;
 
         let ParseContext {
             current_path,
             include_paths,
+            defines,
+            equs,
+            device,
+            segments,
         } = context;
 
         match self {
@@ -116,14 +117,12 @@ impl Directive {
             | Directive::Undef
             | Directive::Pragma
             | Directive::Byte => {
-                curr_segment
-                    .items
-                    .push((point, Item::Directive(self.clone(), opts.clone())));
+                context.push_to_last((point, Item::Directive(self.clone(), opts.clone())));
             }
             Directive::Equ => {
                 if let DirectiveOps::Assign(name, value) = opts {
                     if let Expr::Ident(name) = name {
-                        result.equs.insert(name.clone(), value.clone());
+                        context.set_equ(name.clone(), value.clone());
                     }
                 } else {
                     bail!("wrong format for .equ, expected: {} in {}", opts, point,);
@@ -132,40 +131,39 @@ impl Directive {
             Directive::Org => {
                 if let DirectiveOps::OpList(values) = opts {
                     if let Operand::E(Expr::Const(value)) = &values[0] {
-                        if !curr_segment.is_empty() {
-                            result.segments.push(curr_segment);
-
-                            curr_segment = Segment::new(current_type);
+                        if !context.last_segment().unwrap().borrow().is_empty() {
+                            let current_type = context.last_segment().unwrap().borrow().t;
+                            context.add_segment(Segment::new(current_type));
                         }
-                        curr_segment.address = *value as u32;
+                        context.last_segment().unwrap().borrow_mut().address = *value as u32;
                     }
                 } else {
                     bail!("wrong format for .org, expected: {} in {}", opts, point,);
                 }
             }
             Directive::CSeg | Directive::DSeg | Directive::ESeg => {
-                current_type = match self {
+                let new_type = match self {
                     Directive::CSeg => SegmentType::Code,
                     Directive::DSeg => SegmentType::Data,
                     Directive::ESeg => SegmentType::Eeprom,
                     _ => SegmentType::Code,
                 };
 
-                if !curr_segment.is_empty() {
-                    result.segments.push(curr_segment);
-
-                    curr_segment = Segment::new(current_type);
+                if !context.last_segment().unwrap().borrow().is_empty() {
+                    context.add_segment(Segment::new(new_type));
                 } else {
-                    curr_segment.t = current_type;
+                    context.last_segment().unwrap().borrow_mut().t = new_type;
                 }
             }
             Directive::Device => {
                 if let DirectiveOps::OpList(values) = opts {
                     if let Operand::E(Expr::Ident(value)) = &values[0] {
                         if let Some(device) = DEVICES.get(value.as_str()) {
-                            if let Some(old_device) = &result.device {
+                            if let Some(old_device) =
+                                context.device.as_ref().clone().borrow().as_ref()
+                            {
                                 if old_device == &Device::new(0) {
-                                    result.device = Some(device.clone());
+                                    context.device.replace(Some(device.clone()));
                                 } else {
                                     bail!(
                                         "device redefinition in {}, old: {:?} -> new: {:?}",
@@ -175,7 +173,7 @@ impl Directive {
                                     )
                                 }
                             } else {
-                                result.device = Some(device.clone());
+                                context.device.replace(Some(device.clone()));
                             }
                         } else {
                             bail!("unknown device {} in {}", value, point,)
@@ -191,8 +189,12 @@ impl Directive {
                         let context = ParseContext {
                             current_path: PathBuf::from(include),
                             include_paths: include_paths.clone(),
+                            defines: Rc::clone(&defines),
+                            equs: Rc::clone(&equs),
+                            device: Rc::clone(&device),
+                            segments: Rc::clone(&segments),
                         };
-                        curr_segment = parse_file_internal(result, curr_segment, context)?;
+                        parse_file_internal(&context)?;
                     } else {
                         bail!("wrong format for .include, expected: {} in {}", opts, point,);
                     }
@@ -232,7 +234,7 @@ impl Directive {
             Directive::If => {
                 if let DirectiveOps::OpList(values) = &opts {
                     if let Operand::E(expr) = &values[0] {
-                        let value = expr.run(result)?;
+                        let value = expr.run(context)?;
                         if value == 0 {
                             next_item = NextItem::EndIf;
                         }
@@ -256,7 +258,7 @@ impl Directive {
             Directive::IfNDef | Directive::IfDef => {
                 if let DirectiveOps::OpList(values) = &opts {
                     if let Operand::E(Expr::Ident(name)) = &values[0] {
-                        if result.defines.contains_key(name) {
+                        if context.defines.borrow().contains_key(name) {
                             if self == &Directive::IfNDef {
                                 next_item = NextItem::EndIf;
                             };
@@ -285,7 +287,7 @@ impl Directive {
             Directive::Define => {
                 if let DirectiveOps::OpList(values) = &opts {
                     if let Operand::E(Expr::Ident(name)) = &values[0] {
-                        result.defines.insert(name.clone(), Expr::Const(0));
+                        context.set_define(name.clone(), Expr::Const(0));
                     } else {
                         bail!("wrong format for .define, expected: {} in {}", opts, point,);
                     }
@@ -304,12 +306,12 @@ impl Directive {
             _ => bail!(
                 "Unsupported directive {} in {} segment, {}",
                 self,
-                current_type,
+                context.last_segment().unwrap().borrow().t,
                 point,
             ),
         }
 
-        Ok((next_item, curr_segment))
+        Ok(next_item)
     }
 }
 
@@ -399,7 +401,7 @@ mod parser_tests {
         register::{Reg16, Reg8},
         IndexOps, InstructionOps,
     };
-    use crate::parser::{parse_file, parse_str};
+    use crate::parser::{parse_file, parse_str, ParseResult};
 
     use maplit::{btreeset, hashmap};
     use std::path::PathBuf;
