@@ -26,6 +26,8 @@ struct Pass2Context {
     defs: RefCell<HashMap<String, Reg8>>,
     // sets
     sets: RefCell<HashMap<String, Expr>>,
+    // special
+    special: RefCell<HashMap<String, Expr>>,
     // device
     device: Device,
 }
@@ -47,12 +49,20 @@ impl Context for Pass2Context {
         self.sets.borrow().get(name).map(|x| x.clone())
     }
 
+    fn get_special(&self, name: &String) -> Option<Expr> {
+        self.special.borrow().get(name).map(|x| x.clone())
+    }
+
     fn set_def(&self, name: String, value: Reg8) -> Option<Reg8> {
         if self.exist(&name) {
             None
         } else {
             self.defs.borrow_mut().insert(name, value)
         }
+    }
+
+    fn set_special(&self, name: String, value: Expr) -> Option<Expr> {
+        self.special.borrow_mut().insert(name, value)
     }
 }
 
@@ -75,6 +85,7 @@ pub fn build_pass_2(pass1: BuildResultPass1) -> Result<BuildResultPass2, Error> 
         labels: pass1.labels,
         defs: RefCell::new(hashmap! {}),
         sets: RefCell::new(hashmap! {}),
+        special: RefCell::new(hashmap! {}),
         device: pass1.device,
     };
 
@@ -91,9 +102,10 @@ pub fn build_pass_2(pass1: BuildResultPass1) -> Result<BuildResultPass2, Error> 
             }
             SegmentType::Eeprom => {
                 // pad to address
-                for _ in (eeprom_start_address as i32)..segment.address as i32 - code.len() as i32 {
+                for _ in (eeprom_start_address as i32)..segment.address as i32 - eeprom.len() as i32
+                {
                     // Pushing empty data for spaces
-                    code.extend(vec![0x00]);
+                    eeprom.extend(vec![0x00]);
                 }
             }
             // Data not writed anywhere
@@ -128,6 +140,7 @@ fn pass_2_internal(segment: &Segment, context: &Pass2Context) -> Result<Vec<u8>,
     let mut cur_address = segment.address;
 
     for (line, item) in segment.items.iter() {
+        context.set_special("pc".to_string(), Expr::Const(cur_address as i64));
         match item {
             Item::Instruction(op, op_args) => {
                 if context.device.check_operation(op) {
@@ -498,6 +511,29 @@ counter:
             BuildResultPass2 {
                 code_start_address: 0x0,
                 code: vec![0x20, 0x91, 0x60, 0x0, 0x0, 0x91, 0x61, 0x0, 0x10, 0x91, 0x62, 0x0],
+                eeprom_start_address: 0x0,
+                eeprom: vec![],
+            }
+        );
+    }
+
+    #[test]
+    fn relatives_branch() {
+        let parse_result = parse_str(
+            "
+        subi r16, 1
+        breq pc-1
+        rjmp pc
+        ",
+        );
+        let post_parse_result = build_pass_0(parse_result.unwrap());
+
+        let build_result = build_pass_2(build_pass_1(post_parse_result.unwrap()).unwrap());
+        assert_eq!(
+            build_result.unwrap(),
+            BuildResultPass2 {
+                code_start_address: 0x0,
+                code: vec![0x1, 0x50, 0xf1, 0xf3, 0xff, 0xcf],
                 eeprom_start_address: 0x0,
                 eeprom: vec![],
             }
