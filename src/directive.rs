@@ -11,7 +11,6 @@ use crate::parser::{
 use crate::context::Context;
 use failure::{bail, Error};
 use std::path::PathBuf;
-use std::rc::Rc;
 
 #[derive(Clone, PartialEq, Eq, Debug, EnumString, Display)]
 #[strum(serialize_all = "lowercase")]
@@ -107,6 +106,7 @@ impl Directive {
             equs,
             device,
             segments,
+            macros,
         } = context;
 
         match self {
@@ -189,10 +189,11 @@ impl Directive {
                         let context = ParseContext {
                             current_path: PathBuf::from(include),
                             include_paths: include_paths.clone(),
-                            defines: Rc::clone(&defines),
-                            equs: Rc::clone(&equs),
-                            device: Rc::clone(&device),
-                            segments: Rc::clone(&segments),
+                            defines: defines.clone(),
+                            equs: equs.clone(),
+                            device: device.clone(),
+                            segments: segments.clone(),
+                            macros: macros.clone(),
                         };
                         parse_file_internal(&context)?;
                     } else {
@@ -301,6 +302,18 @@ impl Directive {
             Directive::Endif => {}
             Directive::Exit => {
                 next_item = NextItem::EndFile;
+            }
+            Directive::Macro => {
+                if let DirectiveOps::OpList(values) = &opts {
+                    if let Operand::E(Expr::Ident(name)) = &values[0] {
+                        context.macros.name.replace(name.clone());
+                        next_item = NextItem::EndMacro;
+                    } else {
+                        bail!("wrong format for .macro, expected: {} in {}", opts, point,);
+                    }
+                } else {
+                    bail!("wrong format for .macro, expected: {} in {}", opts, point,);
+                }
             }
             Directive::Custom(name) => bail!("unsupported custom directive {}, {}", name, point),
             _ => bail!(
@@ -534,6 +547,7 @@ mod parser_tests {
                 ],
                 equs: HashMap::new(),
                 defines: hashmap! {},
+                macroses: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
@@ -571,6 +585,7 @@ mod parser_tests {
                 ],
                 equs: HashMap::new(),
                 defines: hashmap! {},
+                macroses: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
@@ -605,6 +620,7 @@ mod parser_tests {
                 ],
                 equs: HashMap::new(),
                 defines: hashmap! {},
+                macroses: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
@@ -650,6 +666,7 @@ mod parser_tests {
                 ],
                 equs: HashMap::new(),
                 defines: hashmap! {},
+                macroses: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
@@ -704,6 +721,7 @@ mod parser_tests {
                 }],
                 equs: HashMap::new(),
                 defines: hashmap! {},
+                macroses: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
@@ -754,6 +772,7 @@ mod parser_tests {
                 }],
                 equs: HashMap::new(),
                 defines: hashmap! {},
+                macroses: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
@@ -772,6 +791,7 @@ mod parser_tests {
                     "REG2".to_string() => Expr::Const(0x46),
                 },
                 defines: hashmap! {},
+                macroses: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
@@ -818,6 +838,7 @@ mod parser_tests {
                 }],
                 equs: HashMap::new(),
                 defines: hashmap! {},
+                macroses: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
@@ -871,6 +892,7 @@ mod parser_tests {
                 }],
                 equs: HashMap::new(),
                 defines: hashmap! {},
+                macroses: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
@@ -904,6 +926,7 @@ mod parser_tests {
                 }],
                 equs: HashMap::new(),
                 defines: hashmap! {},
+                macroses: hashmap! {},
                 device: Some(DEVICES.get("ATmega48").unwrap().clone()),
             }
         );
@@ -940,6 +963,7 @@ mod parser_tests {
                     "SREG".to_string() => Expr::Const(0x3f),
                 },
                 defines: hashmap! {},
+                macroses: hashmap! {},
                 device: Some(DEVICES.get("ATmega48").unwrap().clone()),
             }
         );
@@ -973,6 +997,7 @@ mod parser_tests {
                     "SREG".to_string() => Expr::Const(0x3f),
                 },
                 defines: hashmap! {},
+                macroses: hashmap! {},
                 device: Some(DEVICES.get("ATmega88").unwrap().clone()),
             }
         );
@@ -987,6 +1012,7 @@ mod parser_tests {
                 segments: vec![],
                 equs: HashMap::new(),
                 defines: hashmap! { "T".to_string() => Expr::Const(0) },
+                macroses: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
@@ -998,6 +1024,7 @@ mod parser_tests {
                 segments: vec![],
                 equs: HashMap::new(),
                 defines: hashmap! {},
+                macroses: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
@@ -1009,6 +1036,7 @@ mod parser_tests {
                 segments: vec![],
                 equs: HashMap::new(),
                 defines: hashmap! {},
+                macroses: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
@@ -1020,6 +1048,7 @@ mod parser_tests {
                 segments: vec![],
                 equs: HashMap::new(),
                 defines: hashmap! { "T".to_string() => Expr::Const(0) },
+                macroses: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
@@ -1031,6 +1060,7 @@ mod parser_tests {
                 segments: vec![],
                 equs: HashMap::new(),
                 defines: hashmap! { "X".to_string() => Expr::Const(0)},
+                macroses: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
@@ -1042,6 +1072,7 @@ mod parser_tests {
                 segments: vec![],
                 equs: HashMap::new(),
                 defines: hashmap! { "Y".to_string() => Expr::Const(0), "Z".to_string() => Expr::Const(0) },
+                macroses: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
@@ -1053,6 +1084,7 @@ mod parser_tests {
                 segments: vec![],
                 equs: HashMap::new(),
                 defines: hashmap! { "X".to_string() => Expr::Const(0), "Z".to_string() => Expr::Const(0) },
+                macroses: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
@@ -1064,6 +1096,7 @@ mod parser_tests {
                 segments: vec![],
                 equs: HashMap::new(),
                 defines: hashmap! { "X".to_string() => Expr::Const(0), "Z".to_string() => Expr::Const(0) },
+                macroses: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
@@ -1075,6 +1108,7 @@ mod parser_tests {
                 segments: vec![],
                 equs: HashMap::new(),
                 defines: hashmap! { "Y".to_string() => Expr::Const(0), "Z".to_string() => Expr::Const(0) },
+                macroses: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
@@ -1096,6 +1130,7 @@ mod parser_tests {
                 segments: vec![],
                 equs: HashMap::new(),
                 defines: hashmap! { "Y".to_string() => Expr::Const(0), "Z".to_string() => Expr::Const(0) },
+                macroses: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
@@ -1110,6 +1145,46 @@ mod parser_tests {
                 segments: vec![],
                 equs: HashMap::new(),
                 defines: hashmap! { "Y".to_string() => Expr::Const(0) },
+                macroses: hashmap! {},
+                device: Some(Device::new(0)),
+            }
+        );
+    }
+
+    #[test]
+    fn check_directive_macro() {
+        let parse_result = parse_str(
+            "
+.macro test
+    ; bla bla bla
+    mov r0, @1
+    mov r2, @0
+.if @2 > 0x40
+    lds r16, @2
+.endif
+.endm
+.macro test2
+.endmacro
+
+        ",
+        );
+        assert_eq!(
+            parse_result.unwrap(),
+            ParseResult {
+                segments: vec![],
+                equs: HashMap::new(),
+                defines: hashmap! {},
+                macroses: hashmap! {
+                    "test".to_string() => vec! [
+                        (CodePoint{ line_num: 2, num: 3}, "    ; bla bla bla".to_string()),
+                        (CodePoint{ line_num: 3, num: 3}, "    mov r0, @1".to_string()),
+                        (CodePoint{ line_num: 4, num: 3}, "    mov r2, @0".to_string()),
+                        (CodePoint{ line_num: 5, num: 3}, ".if @2 > 0x40".to_string()),
+                        (CodePoint{ line_num: 6, num: 3}, "    lds r16, @2".to_string()),
+                        (CodePoint{ line_num: 7, num: 3}, ".endif".to_string()),
+                    ],
+                    "test2".to_string() => vec![]
+                },
                 device: Some(Device::new(0)),
             }
         );

@@ -80,6 +80,8 @@ pub struct ParseResult {
     pub equs: HashMap<String, Expr>,
     // defines
     pub defines: HashMap<String, Expr>,
+    // macroses
+    pub macroses: HashMap<String, Vec<(CodePoint, String)>>,
     // device
     pub device: Option<Device>,
 }
@@ -90,9 +92,16 @@ impl ParseResult {
             segments: vec![],
             equs: HashMap::new(),
             defines: HashMap::new(),
+            macroses: hashmap! {},
             device: Some(Device::new(0)),
         }
     }
+}
+
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Macro {
+    pub name: RefCell<String>,
+    pub macroses: RefCell<HashMap<String, Vec<(CodePoint, String)>>>,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -107,6 +116,8 @@ pub struct ParseContext {
     pub device: Rc<RefCell<Option<Device>>>,
     // segments
     pub segments: Rc<RefCell<Vec<Rc<RefCell<Segment>>>>>,
+    // macro
+    pub macros: Rc<Macro>,
 }
 
 impl ParseContext {
@@ -120,6 +131,10 @@ impl ParseContext {
             segments: Rc::new(RefCell::new(vec![Rc::new(RefCell::new(Segment::new(
                 SegmentType::Code,
             )))])),
+            macros: Rc::new(Macro {
+                name: RefCell::new(String::new()),
+                macroses: RefCell::new(hashmap! {}),
+            }),
         }
     }
 
@@ -151,12 +166,14 @@ impl ParseContext {
             .collect();
         let equs = self.equs.borrow().clone();
         let defines = self.defines.borrow().clone();
+        let macroses = self.macros.macroses.borrow().clone();
         let device = self.device.borrow().clone();
 
         ParseResult {
             segments,
             equs,
             defines,
+            macroses,
             device,
         }
     }
@@ -204,6 +221,7 @@ pub fn parse_file_internal(context: &ParseContext) -> Result<(), Error> {
         equs,
         device,
         segments,
+        macros,
     } = context.clone();
     let include_paths = include_paths.borrow_mut();
 
@@ -255,6 +273,7 @@ pub fn parse_file_internal(context: &ParseContext) -> Result<(), Error> {
         equs,
         device,
         segments,
+        macros,
     };
 
     parse(source.as_str(), &context)?;
@@ -272,6 +291,7 @@ pub enum NextItem {
 
 fn skip<'a>(
     iter: &mut dyn Iterator<Item = (usize, &'a str)>,
+    context: &ParseContext,
     ni: NextItem,
 ) -> Option<(usize, &'a str)> {
     let mut scoup_count = 0;
@@ -280,38 +300,51 @@ fn skip<'a>(
         NextItem::EndFile => None,
         other => {
             let mut ret = None;
-            while let Some((num, line)) = iter.next() {
-                if let Ok(item) = document::line(line) {
-                    if let Document::DirectiveLine(_, directive, _) = item {
-                        if other == NextItem::EndIf {
-                            if directive == Directive::If
-                                || directive == Directive::IfDef
-                                || directive == Directive::IfNDef
+            if ni == NextItem::EndMacro {
+                let name = context.macros.name.borrow().clone();
+                let mut items = vec![];
+                while let Some((line_num, line)) = iter.next() {
+                    if let Ok(item) = document::line(line) {
+                        if let Document::DirectiveLine(_, directive, _) = item {
+                            if other == NextItem::EndMacro && directive == Directive::EndMacro
+                                || directive == Directive::EndM
                             {
-                                scoup_count += 1;
-                            } else if directive == Directive::Endif
-                                || directive == Directive::Else
-                                || directive == Directive::ElIf
-                            {
-                                if scoup_count == 0 {
-                                    ret = if directive == Directive::ElIf {
-                                        Some((num, line))
+                                ret = iter.next();
+                                break;
+                            }
+                        }
+                    }
+                    items.push((CodePoint { line_num, num: 3 }, line.to_string()));
+                }
+                context.macros.macroses.borrow_mut().insert(name, items);
+            } else {
+                while let Some((num, line)) = iter.next() {
+                    if let Ok(item) = document::line(line) {
+                        if let Document::DirectiveLine(_, directive, _) = item {
+                            if other == NextItem::EndIf {
+                                if directive == Directive::If
+                                    || directive == Directive::IfDef
+                                    || directive == Directive::IfNDef
+                                {
+                                    scoup_count += 1;
+                                } else if directive == Directive::Endif
+                                    || directive == Directive::Else
+                                    || directive == Directive::ElIf
+                                {
+                                    if scoup_count == 0 {
+                                        ret = if directive == Directive::ElIf {
+                                            Some((num, line))
+                                        } else {
+                                            iter.next()
+                                        };
+                                        break;
                                     } else {
-                                        iter.next()
-                                    };
-                                    break;
-                                } else {
-                                    if directive == Directive::Endif {
-                                        scoup_count -= 1;
+                                        if directive == Directive::Endif {
+                                            scoup_count -= 1;
+                                        }
                                     }
                                 }
                             }
-                        }
-                        if other == NextItem::EndMacro && directive == Directive::EndMacro
-                            || directive == Directive::EndM
-                        {
-                            ret = iter.next();
-                            break;
                         }
                     }
                 }
@@ -327,7 +360,7 @@ pub fn parse(input: &str, context: &ParseContext) -> Result<(), Error> {
     let mut next_item = NextItem::NewLine;
 
     loop {
-        if let Some((line_num, line)) = skip(&mut lines, next_item) {
+        if let Some((line_num, line)) = skip(&mut lines, context, next_item) {
             next_item = NextItem::NewLine; // clear conditional flag to typical state
             let line_num = line_num + 1;
             let parsed_item = document::line(line);
@@ -438,6 +471,7 @@ mod parser_tests {
                 }],
                 equs: hashmap! {},
                 defines: hashmap! {},
+                macroses: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
@@ -468,6 +502,7 @@ mod parser_tests {
                 }],
                 equs: hashmap! {},
                 defines: hashmap! {},
+                macroses: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
@@ -489,6 +524,7 @@ mod parser_tests {
                 }],
                 equs: hashmap! {},
                 defines: hashmap! {},
+                macroses: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
@@ -548,6 +584,7 @@ mod parser_tests {
                 }],
                 equs: hashmap! {},
                 defines: hashmap! {},
+                macroses: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
@@ -592,6 +629,7 @@ mod parser_tests {
                 }],
                 equs: hashmap! {},
                 defines: hashmap! {},
+                macroses: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
@@ -636,6 +674,7 @@ mod parser_tests {
                 }],
                 equs: hashmap! {},
                 defines: hashmap! {},
+                macroses: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
@@ -683,6 +722,7 @@ mod parser_tests {
                 }],
                 equs: hashmap! {},
                 defines: hashmap! {},
+                macroses: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
@@ -726,6 +766,7 @@ mod parser_tests {
                 }],
                 equs: hashmap! {},
                 defines: hashmap! {},
+                macroses: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
@@ -810,6 +851,7 @@ mod parser_tests {
                 }],
                 equs: hashmap! {},
                 defines: hashmap! {},
+                macroses: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
@@ -878,6 +920,7 @@ mod parser_tests {
                 }],
                 equs: hashmap! {},
                 defines: hashmap! {},
+                macroses: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
@@ -926,6 +969,7 @@ mod parser_tests {
                 }],
                 equs: hashmap! {},
                 defines: hashmap! {},
+                macroses: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
