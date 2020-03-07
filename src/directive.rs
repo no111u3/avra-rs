@@ -59,7 +59,7 @@ pub enum Directive {
     Set,
     /// Define a preprocessor macro
     Define,
-    /// Conditional assembly - alternate branches (partially)
+    /// Conditional assembly - alternate branches
     Else,
     ElIf,
     /// Conditional assembly - end conditional block
@@ -231,7 +231,7 @@ impl Directive {
                     );
                 }
             }
-            Directive::If => {
+            Directive::If | Directive::ElIf => {
                 if let DirectiveOps::OpList(values) = &opts {
                     if let Operand::E(expr) = &values[0] {
                         let value = expr.run(context)?;
@@ -979,7 +979,7 @@ mod parser_tests {
     }
 
     #[test]
-    fn check_directive_if_ifdef_ifndef_else_define() {
+    fn check_directive_if_ifdef_ifndef_elif_else_define() {
         let parse_result = parse_str(".define T\n.ifndef T\n.endif");
         assert_eq!(
             parse_result.unwrap(),
@@ -1069,6 +1069,27 @@ mod parser_tests {
         );
 
         let parse_result = parse_str(".if 4 > 5\n.define X\n.else\n.define Y\n.endif\n.define Z");
+        assert_eq!(
+            parse_result.unwrap(),
+            ParseResult {
+                segments: vec![],
+                equs: HashMap::new(),
+                defines: hashmap! { "Y".to_string() => Expr::Const(0), "Z".to_string() => Expr::Const(0) },
+                device: Some(Device::new(0)),
+            }
+        );
+
+        let parse_result = parse_str(
+            "\
+        .if 4 > 5
+        .define X
+        .elif 2 > 1
+        .define Y
+        .else
+        .define T
+        .endif
+        .define Z",
+        );
         assert_eq!(
             parse_result.unwrap(),
             ParseResult {

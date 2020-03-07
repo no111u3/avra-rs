@@ -280,7 +280,7 @@ fn skip<'a>(
         NextItem::EndFile => None,
         other => {
             let mut ret = None;
-            while let Some((_, line)) = iter.next() {
+            while let Some((num, line)) = iter.next() {
                 if let Ok(item) = document::line(line) {
                     if let Document::DirectiveLine(_, directive, _) = item {
                         if other == NextItem::EndIf {
@@ -289,10 +289,16 @@ fn skip<'a>(
                                 || directive == Directive::IfNDef
                             {
                                 scoup_count += 1;
-                            } else if directive == Directive::Endif || directive == Directive::Else
+                            } else if directive == Directive::Endif
+                                || directive == Directive::Else
+                                || directive == Directive::ElIf
                             {
                                 if scoup_count == 0 {
-                                    ret = iter.next();
+                                    ret = if directive == Directive::ElIf {
+                                        Some((num, line))
+                                    } else {
+                                        iter.next()
+                                    };
                                     break;
                                 } else {
                                     if directive == Directive::Endif {
