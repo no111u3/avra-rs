@@ -151,7 +151,7 @@ parser! {
             / op_name:op() { Operation::from_str(op_name).unwrap() }
 
         pub rule operation() -> Operation
-            = op_name:$(['a'..='z']+) {
+            = op_name:$(ident()) {
                 if let Ok(op) = document::standard_operation(op_name.to_lowercase().as_str()) {
                     op
                 } else {
@@ -179,7 +179,7 @@ parser! {
 
 
         pub rule standard_directive() -> Result<Directive, strum::ParseError>
-            = d:$(['a'..='z']+) { Directive::from_str(d) }
+            = d:$(ident()) { Directive::from_str(d) }
 
         pub rule directive() -> Directive
             = ("." / "#" ) d_name:$(['a'..='z']+) {
