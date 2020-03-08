@@ -126,7 +126,7 @@ fn pass0_internal(
 
     for (line, item) in segment.items.iter() {
         match item {
-            Item::Instruction(name, ops) => match name {
+            Item::Instruction(name, _ops) => match name {
                 Operation::Custom(macro_name) => {
                     if let Some(macro_body) = macroses.get(macro_name) {
                         let mut iter = macro_body.iter().map(|x| (x.0.line_num, x.1.as_str()));

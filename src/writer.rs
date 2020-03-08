@@ -44,7 +44,8 @@ fn generate_hex(br: BuildResult) -> Result<GenerateResult, Error> {
 pub fn write_code_hex(path: PathBuf, br: BuildResult) -> Result<(), Error> {
     let output = generate_hex(br)?;
     let mut file_output = File::create(path)?;
-    file_output.write_all(output.code.as_bytes())?;
+    file_output.write_all(output.code.replace("\n", "\r\n").as_bytes())?;
+    file_output.write(b"\r\n")?;
 
     Ok(())
 }
@@ -52,7 +53,8 @@ pub fn write_code_hex(path: PathBuf, br: BuildResult) -> Result<(), Error> {
 pub fn write_eeprom_hex(path: PathBuf, br: BuildResult) -> Result<(), Error> {
     let output = generate_hex(br)?;
     let mut file_output = File::create(path)?;
-    file_output.write_all(output.eeprom.as_bytes())?;
+    file_output.write_all(output.eeprom.replace("\n", "\r\n").as_bytes())?;
+    file_output.write(b"\r\n")?;
 
     Ok(())
 }
