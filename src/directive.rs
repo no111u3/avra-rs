@@ -31,7 +31,7 @@ pub enum Directive {
     DSeg,
     /// Define constant words in program memory and EEPROM
     Dw,
-    /// End of macro define (unsupported)
+    /// End of macro define
     EndM,
     EndMacro,
     /// Set a symbol equal to an expression
@@ -48,7 +48,7 @@ pub enum Directive {
     List,
     /// Turn macro expansion in list file on (unsupported)
     ListMac,
-    /// Begin macro (unsupported)
+    /// Begin macro
     Macro,
     /// Turn listfile generation off (unsupported)
     NoList,

@@ -104,6 +104,15 @@ pub struct Macro {
     pub macroses: RefCell<HashMap<String, Vec<(CodePoint, String)>>>,
 }
 
+impl Macro {
+    pub fn new() -> Self {
+        Self {
+            name: RefCell::new(String::new()),
+            macroses: RefCell::new(hashmap! {}),
+        }
+    }
+}
+
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct ParseContext {
     pub current_path: PathBuf,
@@ -357,10 +366,17 @@ fn skip<'a>(
 pub fn parse(input: &str, context: &ParseContext) -> Result<(), Error> {
     let mut lines = input.lines().enumerate();
 
+    parse_iter(&mut lines, context)
+}
+
+pub fn parse_iter<'a>(
+    iter: &mut dyn Iterator<Item = (usize, &'a str)>,
+    context: &ParseContext,
+) -> Result<(), Error> {
     let mut next_item = NextItem::NewLine;
 
     loop {
-        if let Some((line_num, line)) = skip(&mut lines, context, next_item) {
+        if let Some((line_num, line)) = skip(iter, context, next_item) {
             next_item = NextItem::NewLine; // clear conditional flag to typical state
             let line_num = line_num + 1;
             let parsed_item = document::line(line);
