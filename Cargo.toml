@@ -1,6 +1,6 @@
 [package]
 name = "avra-rs"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Boris Vinogradov <no111u3@gmail.com>"]
 description = "Assembler for Microchip(near Atmel) AVR microcontroller family"
 edition = "2018"
