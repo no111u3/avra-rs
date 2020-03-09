@@ -786,9 +786,9 @@ mod parser_tests {
             ParseResult {
                 segments: vec![],
                 equs: hashmap! {
-                    "REG0".to_string() => Expr::Const(0x44),
-                    "REG1".to_string() => Expr::Const(0x45),
-                    "REG2".to_string() => Expr::Const(0x46),
+                    "reg0".to_string() => Expr::Const(0x44),
+                    "reg1".to_string() => Expr::Const(0x45),
+                    "reg2".to_string() => Expr::Const(0x46),
                 },
                 defines: hashmap! {},
                 macroses: hashmap! {},
@@ -960,7 +960,7 @@ mod parser_tests {
                     address: 0
                 }],
                 equs: hashmap! {
-                    "SREG".to_string() => Expr::Const(0x3f),
+                    "sreg".to_string() => Expr::Const(0x3f),
                 },
                 defines: hashmap! {},
                 macroses: hashmap! {},
@@ -994,7 +994,7 @@ mod parser_tests {
                     address: 0
                 }],
                 equs: hashmap! {
-                    "SREG".to_string() => Expr::Const(0x3f),
+                    "sreg".to_string() => Expr::Const(0x3f),
                 },
                 defines: hashmap! {},
                 macroses: hashmap! {},

@@ -34,11 +34,11 @@ struct Pass2Context {
 
 impl Context for Pass2Context {
     fn get_equ(&self, name: &String) -> Option<Expr> {
-        self.equs.get(name).map(|x| x.clone())
+        self.equs.get(&name.to_lowercase()).map(|x| x.clone())
     }
 
     fn get_label(&self, name: &String) -> Option<(SegmentType, u32)> {
-        self.labels.get(name).map(|x| x.clone())
+        self.labels.get(&name.to_lowercase()).map(|x| x.clone())
     }
 
     fn get_def(&self, name: &String) -> Option<Reg8> {

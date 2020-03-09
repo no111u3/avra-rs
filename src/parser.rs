@@ -194,7 +194,7 @@ impl Context for ParseContext {
     }
 
     fn get_equ(&self, name: &String) -> Option<Expr> {
-        self.equs.borrow().get(name).map(|x| x.clone())
+        self.equs.borrow().get(&name.to_lowercase()).map(|x| x.clone())
     }
 
     fn set_define(&self, name: String, expr: Expr) -> Option<Expr> {
@@ -202,7 +202,7 @@ impl Context for ParseContext {
     }
 
     fn set_equ(&self, name: String, expr: Expr) -> Option<Expr> {
-        self.equs.borrow_mut().insert(name, expr)
+        self.equs.borrow_mut().insert(name.to_lowercase(), expr)
     }
 }
 
