@@ -4,15 +4,18 @@
 
 AVRA-RS Rust rewrites version of AVRA (https://github.com/hsoft/avra).
 I create AVRA-RS because original software has some issues and mistakes and I can't fix it.
+But after I change project mission and targets.
 
-First of all I need to say - it is not full implementation of orignal assembler and it has 
+First of all I need to say - it is not full implementation of original assembler and it has 
 some differences front original AVRA. For example everything constructions have tests -
 fully as possible.
 
 ## Differece between AVRA-RS and AVRA
 
-AVRA-RS has incomplete implementation of directives, and not supported any extra options of
+AVRA-RS has most full implementation of directives and assembler commands, but not supported any extra options of
 AVRA
+
+AVRA-RS support ATmega and ATtiny mcus but for ATtiny mcus not supported correct lds/sts commands.
 
 ## Build and Install
 
@@ -22,7 +25,10 @@ To build the `avra-rs` you can use `cargo build` and `cargo install`, or you can
 ## Usage
 
 To compile source file you need to run `avra-rs` with argument `-s` for describe path to
-source and optionally you can provide output path by `-o`. Other options aren't supported.
+source and optionally you can provide output path by `-o`. for provide another place of
+eeprom store you can use `-e` key.
+
+Other options aren't supported.
 Detail information of assembler will be added in near future.
 
 ## Change log
