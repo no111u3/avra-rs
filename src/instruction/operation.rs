@@ -238,6 +238,10 @@ pub enum Operation {
     Bset,
     /// Flag clear
     Bclr,
+    /// Bit store from bit in register to T flag in SREG
+    Bst,
+    /// Bit load from the T flag in SREG to a bit in register
+    Bld,
     /// Set flag in status register
     #[strum(disabled = "true")]
     Se(SFlags),
@@ -636,6 +640,16 @@ impl Operation {
             },
             // s        1001 0100 1sss 1000
             Operation::Bclr => Info {
+                len: 1,
+                op_code: 0xfa00,
+            },
+            // Rr, b    1111 101r rrrr 0bbb
+            Operation::Bst => Info {
+                len: 1,
+                op_code: 0xf800,
+            },
+            // Rd, b    1111 100d dddd 0bbb
+            Operation::Bld => Info {
                 len: 1,
                 op_code: 0x9488,
             },

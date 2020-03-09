@@ -143,7 +143,8 @@ parser! {
             / "mov" / "lsr" / "lsl" / "lpm" / "lds" / "ldi" / "ldd" / "ld" / "jmp" / "inc"
             / "in" / "ijmp" / "icall" / "fmulsu" / "fmuls" / "fmul" / "eor" / "elpm" / "eijmp"
             / "eicall" / "dec" / "cpse" / "cpi" / "cpc" / "cp" / "com" / "clr" / "cbr" / "cbi"
-            / "call" / "bset" / "break" / "bclr" / "asr" / "andi" / "and" / "adiw" / "add" / "adc")
+            / "call" / "bst" / "bset" / "break" / "bld" / "bclr" / "asr" / "andi" / "and" / "adiw"
+            / "add" / "adc")
 
         pub rule standard_operation() -> Operation
             = "br" br_type:branc_op() { Operation::Br(BranchT::from_str(br_type).unwrap()) }

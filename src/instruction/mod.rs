@@ -369,7 +369,7 @@ pub fn process(
             let k = k as u16;
             opcode |= (k & 0x30) << 5 | k & 0x0f;
         }
-        Operation::Sbrc | Operation::Sbrs => {
+        Operation::Sbrc | Operation::Sbrs | Operation::Bst | Operation::Bld => {
             opcode |= op_args[0].get_r8(constants)?.number() << 4;
 
             let b = op_args[1].get_expr()?;
