@@ -33,7 +33,7 @@ fn generate_hex_from_segment(segment: &[u8]) -> Result<String, Error> {
     Ok(hex)
 }
 
-fn generate_hex(br: BuildResult) -> Result<GenerateResult, Error> {
+fn generate_hex(br: &BuildResult) -> Result<GenerateResult, Error> {
     let code = generate_hex_from_segment(&br.code)?;
 
     let eeprom = generate_hex_from_segment(&br.eeprom)?;
@@ -41,7 +41,7 @@ fn generate_hex(br: BuildResult) -> Result<GenerateResult, Error> {
     Ok(GenerateResult { code, eeprom })
 }
 
-pub fn write_code_hex(path: PathBuf, br: BuildResult) -> Result<(), Error> {
+pub fn write_code_hex(path: PathBuf, br: &BuildResult) -> Result<(), Error> {
     let output = generate_hex(br)?;
     let mut file_output = File::create(path)?;
     file_output.write_all(output.code.replace("\n", "\r\n").as_bytes())?;
@@ -50,7 +50,7 @@ pub fn write_code_hex(path: PathBuf, br: BuildResult) -> Result<(), Error> {
     Ok(())
 }
 
-pub fn write_eeprom_hex(path: PathBuf, br: BuildResult) -> Result<(), Error> {
+pub fn write_eeprom_hex(path: PathBuf, br: &BuildResult) -> Result<(), Error> {
     let output = generate_hex(br)?;
     let mut file_output = File::create(path)?;
     file_output.write_all(output.eeprom.replace("\n", "\r\n").as_bytes())?;
@@ -65,7 +65,7 @@ mod writer_tests {
 
     #[test]
     fn check_empty() {
-        let result = generate_hex(BuildResult {
+        let result = generate_hex(&BuildResult {
             code: vec![],
             eeprom: vec![],
         })
@@ -86,7 +86,7 @@ mod writer_tests {
             eeprom: vec![],
         };
 
-        let result = generate_hex(build_result).unwrap();
+        let result = generate_hex(&build_result).unwrap();
 
         assert_eq!(
             result.code,

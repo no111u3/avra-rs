@@ -12,4 +12,7 @@ pub struct Opt {
     /// Output firmware file name, if not provided build in same name and same place as source file
     #[structopt(short, long, parse(from_os_str))]
     pub output: Option<PathBuf>,
+    /// Output eeprom file name, if not provided build in same name and same place as source file
+    #[structopt(short, long, parse(from_os_str))]
+    pub eeprom: Option<PathBuf>,
 }

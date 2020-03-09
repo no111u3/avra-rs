@@ -4,7 +4,11 @@ mod opt;
 
 use crate::opt::Opt;
 
-use avra_lib::{builder::build_file, utility::get_standard_includes, writer::write_code_hex};
+use avra_lib::{
+    builder::build_file,
+    utility::get_standard_includes,
+    writer::{write_code_hex, write_eeprom_hex},
+};
 
 use std::path::Path;
 
@@ -23,8 +27,7 @@ fn main() {
 
     match build_file(opt.source.clone(), btreeset! { get_standard_includes() }) {
         Ok(built) => {
-            // TODO: Add check and write eeprom
-            // write to file
+            // write to file code
             if !built.code.is_empty() {
                 let outpath = if let Some(output) = opt.output {
                     output
@@ -50,7 +53,7 @@ fn main() {
                     source_parent
                 };
 
-                match write_code_hex(outpath, built) {
+                match write_code_hex(outpath, &built) {
                     Ok(()) => {}
                     Err(e) => println!(
                         "Failed to generate and write hex file {}, with error {}",
@@ -58,7 +61,43 @@ fn main() {
                     ),
                 }
             } else {
-                println!("Nothing to write for file {}", file_name);
+                println!("Nothing to write of code for file {}", file_name);
+            }
+            // write to file eeprom
+            if !built.eeprom.is_empty() {
+                let outpath = if let Some(output) = opt.eeprom {
+                    output
+                } else {
+                    let mut source_parent = opt
+                        .source
+                        .clone()
+                        .parent()
+                        .unwrap_or(&Path::new("."))
+                        .to_path_buf();
+                    let mut out_file_name = String::from(
+                        opt.source
+                            .as_path()
+                            .file_stem()
+                            .unwrap()
+                            .to_str()
+                            .unwrap_or(""),
+                    );
+                    out_file_name += ".eep.hex";
+
+                    source_parent.push(out_file_name);
+
+                    source_parent
+                };
+
+                match write_eeprom_hex(outpath, &built) {
+                    Ok(()) => {}
+                    Err(e) => println!(
+                        "Failed to generate and write hex file {}, with error {}",
+                        file_name, e
+                    ),
+                }
+            } else {
+                println!("Nothing to write of eeprom for file {}", file_name);
             }
         }
         Err(e) => {
