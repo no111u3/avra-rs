@@ -131,6 +131,16 @@ fn pass0_internal(
                 Operation::Custom(macro_name) => {
                     let segments = macro_expand(line, macro_name, ops, context, macroses)?;
                     if !segments.is_empty() {
+                        let current_segment = context.last_segment().unwrap().borrow().clone();
+                        if segments[0].address != current_segment.address
+                            || segments[0].t != current_segment.t
+                        {
+                            context.add_segment(Segment {
+                                address: segments[0].address,
+                                t: segments[0].t,
+                                items: vec![],
+                            });
+                        }
                         pass0_internal(segments[0].clone(), context, macroses)?;
                         for segment in segments.iter().skip(1) {
                             if segment.t == SegmentType::Code {
