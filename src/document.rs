@@ -106,7 +106,8 @@ parser! {
             // precedence 12
             x:(@) space() "+" space() y:@ { Expr::Binary(Box::new(BinaryExpr{left: x, operator: BinaryOperator::Add, right: y})) }
             x:(@) space() "-" space() y:@ { Expr::Binary(Box::new(BinaryExpr{left: x, operator: BinaryOperator::Sub, right: y})) }
-            "~" v:@ { Expr::Unary(Box::new(UnaryExpr{operator: UnaryOperator::Not, expr: v})) }
+            "~" v:@ { Expr::Unary(Box::new(UnaryExpr{operator: UnaryOperator::BitwiseNot, expr: v})) }
+            "!" v:@ { Expr::Unary(Box::new(UnaryExpr{operator: UnaryOperator::LogicalNot, expr: v})) }
             --
             // precedence 13
             x:(@) space() "*" space() y:@ { Expr::Binary(Box::new(BinaryExpr{left: x, operator: BinaryOperator::Mul, right: y})) }

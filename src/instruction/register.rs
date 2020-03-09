@@ -1,7 +1,7 @@
-use strum_macros::EnumString;
+use strum_macros::{Display, EnumString};
 
 /// Main core registers
-#[derive(Clone, Copy, PartialEq, Eq, Debug, EnumString)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, EnumString, Display)]
 #[strum(serialize_all = "lowercase")]
 pub enum Reg8 {
     // Lower part of registers
@@ -47,7 +47,7 @@ impl Reg8 {
 }
 
 /// Combined core registers
-#[derive(Clone, Copy, PartialEq, Eq, Debug, EnumString)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, EnumString, Display)]
 #[strum(serialize_all = "lowercase")]
 pub enum Reg16 {
     X,

@@ -1,6 +1,8 @@
 pub mod operation;
 pub mod register;
 
+use std::fmt;
+
 use crate::expr::Expr;
 
 use crate::instruction::{
@@ -25,11 +27,32 @@ pub enum IndexOps {
     PreDecrement(Reg16),
 }
 
+impl fmt::Display for IndexOps {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            IndexOps::None(r16) => write!(f, "{}", r16),
+            IndexOps::PostIncrement(r16) => write!(f, "{}+", r16),
+            IndexOps::PreDecrement(r16) => write!(f, "-{}", r16),
+            IndexOps::PostIncrementE(r16, expr) => write!(f, "{}+{}", r16, expr),
+        }
+    }
+}
+
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum InstructionOps {
     R8(Reg8),
     Index(IndexOps),
     E(Expr),
+}
+
+impl fmt::Display for InstructionOps {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            InstructionOps::R8(r8) => write!(f, "{}", r8),
+            InstructionOps::Index(index) => write!(f, "{}", index),
+            InstructionOps::E(expr) => write!(f, "{}", expr),
+        }
+    }
 }
 
 impl InstructionOps {
@@ -408,12 +431,28 @@ mod parser_tests {
     }
 
     #[test]
+    fn reg8_rev_convert_test() {
+        assert_eq!((Reg8::R0).to_string(), String::from("r0"));
+
+        assert_eq!((Reg8::R21).to_string(), String::from("r21"));
+    }
+
+    #[test]
     fn reg16_test() {
         assert_eq!(document::reg16("X"), Ok(Reg16::X));
 
         assert_eq!(document::reg16("Y"), Ok(Reg16::Y));
 
         assert_eq!(document::reg16("Z"), Ok(Reg16::Z));
+    }
+
+    #[test]
+    fn reg16_rev_convert_test() {
+        assert_eq!((Reg16::X).to_string(), String::from("x"));
+
+        assert_eq!((Reg16::Y).to_string(), String::from("y"));
+
+        assert_eq!((Reg16::Z).to_string(), String::from("z"));
     }
 
     #[test]
@@ -433,6 +472,26 @@ mod parser_tests {
         assert_eq!(
             document::index_ops("Z+4"),
             Ok(IndexOps::PostIncrementE(Reg16::Z, Expr::Const(4)))
+        );
+    }
+
+    #[test]
+    fn index_ops_rev_convert_test() {
+        assert_eq!((IndexOps::None(Reg16::X)).to_string(), String::from("x"));
+
+        assert_eq!(
+            (IndexOps::PreDecrement(Reg16::Y)).to_string(),
+            String::from("-y")
+        );
+
+        assert_eq!(
+            (IndexOps::PostIncrement(Reg16::X)).to_string(),
+            String::from("x+")
+        );
+
+        assert_eq!(
+            (IndexOps::PostIncrementE(Reg16::Z, Expr::Const(4))).to_string(),
+            String::from("z+4")
         );
     }
 

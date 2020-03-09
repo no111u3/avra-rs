@@ -3,6 +3,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::rc::Rc;
+use std::string::ToString;
 
 use crate::device::Device;
 use crate::expr::Expr;
@@ -126,9 +127,23 @@ fn pass0_internal(
 
     for (line, item) in segment.items.iter() {
         match item {
-            Item::Instruction(name, _ops) => match name {
+            Item::Instruction(name, ops) => match name {
                 Operation::Custom(macro_name) => {
                     if let Some(macro_body) = macroses.get(macro_name) {
+                        let macro_body = if !ops.is_empty() {
+                            let mut processed = vec![];
+                            for (cp, raw_line) in macro_body {
+                                let mut raw_line = raw_line.clone();
+                                let string_rep = ops.iter().map(|x| x.to_string());
+                                for (num, replacer) in string_rep.enumerate() {
+                                    raw_line = raw_line.replace(&format!("@{}", num), replacer.as_str());
+                                }
+                                processed.push((cp.clone(), raw_line));
+                            }
+                            processed
+                        } else {
+                            macro_body.clone()
+                        };
                         let mut iter = macro_body.iter().map(|x| (x.0.line_num, x.1.as_str()));
                         let parse_context = ParseContext {
                             current_path: context.current_path.clone(),
@@ -243,6 +258,86 @@ mod builder_tests {
                                 vec![
                                     InstructionOps::R8(Reg8::R17),
                                     InstructionOps::E(Expr::Const(2)),
+                                ]
+                            )
+                        )
+                    ],
+                    t: SegmentType::Code,
+                    address: 0x0,
+                }],
+                equs: hashmap! {},
+                device: Some(Device::new(0)),
+            }
+        );
+    }
+
+    #[test]
+    fn check_for_argument_macro() {
+        let parse_result = parse_str(
+            "
+.macro test_one
+        ldi r16, @0
+        ldi r17, @1
+.endm
+        test_one 1, 2
+        test_one 3, 4
+        ",
+        );
+        let build_result = build_pass_0(parse_result.unwrap());
+        assert_eq!(
+            build_result.unwrap(),
+            BuildResultPass0 {
+                segments: vec![Segment {
+                    items: vec![
+                        (
+                            CodePoint {
+                                line_num: 3,
+                                num: 2
+                            },
+                            Item::Instruction(
+                                Operation::Ldi,
+                                vec![
+                                    InstructionOps::R8(Reg8::R16),
+                                    InstructionOps::E(Expr::Const(1)),
+                                ]
+                            )
+                        ),
+                        (
+                            CodePoint {
+                                line_num: 4,
+                                num: 2
+                            },
+                            Item::Instruction(
+                                Operation::Ldi,
+                                vec![
+                                    InstructionOps::R8(Reg8::R17),
+                                    InstructionOps::E(Expr::Const(2)),
+                                ]
+                            )
+                        ),
+                        (
+                            CodePoint {
+                                line_num: 3,
+                                num: 2
+                            },
+                            Item::Instruction(
+                                Operation::Ldi,
+                                vec![
+                                    InstructionOps::R8(Reg8::R16),
+                                    InstructionOps::E(Expr::Const(3)),
+                                ]
+                            )
+                        ),
+                        (
+                            CodePoint {
+                                line_num: 4,
+                                num: 2
+                            },
+                            Item::Instruction(
+                                Operation::Ldi,
+                                vec![
+                                    InstructionOps::R8(Reg8::R17),
+                                    InstructionOps::E(Expr::Const(4)),
                                 ]
                             )
                         )

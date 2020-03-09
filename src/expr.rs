@@ -2,8 +2,11 @@
 
 use byteorder::{ByteOrder, LittleEndian};
 use failure::Fail;
+use strum_macros::Display;
 
 use crate::context::Context;
+
+use std::fmt;
 
 /// Assembly uses constant expressions to avoid copying magic numbers around.
 /// Expr represents these constant expressions.
@@ -19,6 +22,18 @@ pub enum Expr {
     Func(Box<Expr>, Box<Expr>),
     Binary(Box<BinaryExpr>),
     Unary(Box<UnaryExpr>),
+}
+
+impl fmt::Display for Expr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Expr::Ident(ident) => write!(f, "{}", ident),
+            Expr::Const(c) => write!(f, "{}", c),
+            Expr::Func(f_name, f_arg) => write!(f, "{}({})", f_name, f_arg),
+            Expr::Binary(binary) => write!(f, "{}", binary),
+            Expr::Unary(unary) => write!(f, "{}", unary),
+        }
+    }
 }
 
 impl Expr {
@@ -196,9 +211,13 @@ impl Expr {
                         ))),
                     }
                 }
-                UnaryOperator::Not => {
+                UnaryOperator::BitwiseNot => {
                     let value = unary.expr.run(constants)?;
                     Ok(value.reverse_bits())
+                }
+                UnaryOperator::LogicalNot => {
+                    let value = unary.expr.run(constants)?;
+                    Ok((value == 0) as i64)
                 }
             },
         }
@@ -224,38 +243,72 @@ pub struct BinaryExpr {
     pub right: Expr,
 }
 
+impl fmt::Display for BinaryExpr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}{}{}", self.left, self.operator, self.right)
+    }
+}
+
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct UnaryExpr {
     pub operator: UnaryOperator,
     pub expr: Expr,
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+impl fmt::Display for UnaryExpr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}{}", self.operator, self.expr)
+    }
+}
+
+#[derive(Clone, PartialEq, Eq, Debug, Display)]
 pub enum BinaryOperator {
+    #[strum(serialize = "+")]
     Add,
+    #[strum(serialize = "-")]
     Sub,
+    #[strum(serialize = "*")]
     Mul,
+    #[strum(serialize = "/")]
     Div,
+    #[strum(serialize = "%")]
     Rem,
+    #[strum(serialize = "&")]
     BitwiseAnd,
+    #[strum(serialize = "^")]
     BitwiseXor,
+    #[strum(serialize = "|")]
     BitwiseOr,
+    #[strum(serialize = "<<")]
     ShiftLeft,
+    #[strum(serialize = ">>")]
     ShiftRight,
+    #[strum(serialize = "<")]
     LessThan,
+    #[strum(serialize = "<=")]
     LessOrEqual,
+    #[strum(serialize = ">")]
     GreaterThan,
+    #[strum(serialize = ">=")]
     GreaterOrEqual,
+    #[strum(serialize = "==")]
     Equal,
+    #[strum(serialize = "!=")]
     NotEqual,
+    #[strum(serialize = "&&")]
     LogicalAnd,
+    #[strum(serialize = "||")]
     LogicalOr,
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, Display)]
 pub enum UnaryOperator {
+    #[strum(serialize = "-")]
     Minus,
-    Not,
+    #[strum(serialize = "~")]
+    BitwiseNot,
+    #[strum(serialize = "!")]
+    LogicalNot,
 }
 
 #[cfg(test)]
