@@ -369,7 +369,15 @@ pub fn process(
             let k = k as u16;
             opcode |= (k & 0x30) << 5 | k & 0x0f;
         }
-        Operation::Sbi | Operation::Cbi => {
+        Operation::Sbrc | Operation::Sbrs => {
+            opcode |= op_args[0].get_r8(constants)?.number() << 4;
+
+            let b = op_args[1].get_expr()?;
+            let b: u16 = b.get_bit_index(constants)? as u16;
+
+            opcode |= b;
+        }
+        Operation::Sbi | Operation::Cbi | Operation::Sbis | Operation::Sbic => {
             let k = op_args[0].get_expr()?.get_byte(constants)? as i8;
             if k < 0 || k > 31 {
                 bail!("I/O out of range (0 <= P <= 31");

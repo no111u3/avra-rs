@@ -175,6 +175,14 @@ pub enum Operation {
     /// Conditinal branch
     #[strum(disabled = "true")]
     Br(BranchT),
+    /// Skip if bit in I/O register is cleared
+    Sbic,
+    /// Skip if bit in I/O register is set
+    Sbis,
+    /// Skip if bit in register is cleared
+    Sbrc,
+    /// Skip if bit in register is set
+    Sbrs,
 
     /// Data transfer instructions
     Mov,
@@ -476,6 +484,26 @@ impl Operation {
             Operation::Br(_) => Info {
                 len: 1,
                 op_code: 0xf000,
+            },
+            // P, b     1001 1001 PPPP Pbbb
+            Operation::Sbic => Info {
+                len: 1,
+                op_code: 0x9900,
+            },
+            // P, b     1001 1011 PPPP Pbbb
+            Operation::Sbis => Info {
+                len: 1,
+                op_code: 0x9b00,
+            },
+            // Rr, b    1111 110r rrrr 0bbb
+            Operation::Sbrc => Info {
+                len: 1,
+                op_code: 0xfc00,
+            },
+            // Rr, b    1111 111r rrrr 0bbb
+            Operation::Sbrs => Info {
+                len: 1,
+                op_code: 0xfe00,
             },
             // Rd, Rr   0010 11rd dddd rrrr
             Operation::Mov => Info {
