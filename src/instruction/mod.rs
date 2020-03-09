@@ -367,7 +367,7 @@ pub fn process(
                 bail!("I/O out of range (0 <= P <= 63");
             }
             let k = k as u16;
-            opcode |= (k & 0x30) << 2 | k & 0x0f;
+            opcode |= (k & 0x30) << 5 | k & 0x0f;
         }
         Operation::Bset | Operation::Bclr => {
             let k = op_args[0].get_expr()?;
