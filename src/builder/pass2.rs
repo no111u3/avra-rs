@@ -42,7 +42,10 @@ impl Context for Pass2Context {
     }
 
     fn get_def(&self, name: &String) -> Option<Reg8> {
-        self.defs.borrow().get(name).map(|x| x.clone())
+        self.defs
+            .borrow()
+            .get(&name.to_lowercase())
+            .map(|x| x.clone())
     }
 
     fn get_set(&self, name: &String) -> Option<Expr> {
@@ -57,7 +60,7 @@ impl Context for Pass2Context {
         if self.exist(&name) {
             None
         } else {
-            self.defs.borrow_mut().insert(name, value)
+            self.defs.borrow_mut().insert(name.to_lowercase(), value)
         }
     }
 
