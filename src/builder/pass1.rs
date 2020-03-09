@@ -154,7 +154,7 @@ fn pass_1_internal(
                             }
                         }
                         Directive::Byte => match segment.t {
-                            SegmentType::Data => {
+                            SegmentType::Data | SegmentType::Eeprom => {
                                 if let DirectiveOps::OpList(args) = d_op {
                                     if args.len() > 1 {
                                         bail!("Too many arguments for {}", d);
@@ -163,6 +163,15 @@ fn pass_1_internal(
                                         if let Expr::Const(n) = expr {
                                             cur_address += *n as u32;
                                         }
+                                    }
+                                    if segment.t == SegmentType::Eeprom {
+                                        out_items.push((
+                                            *line,
+                                            Item::Directive(
+                                                Directive::Byte,
+                                                DirectiveOps::OpList(args.clone()),
+                                            ),
+                                        ));
                                     }
                                 } else {
                                     bail!("Not allowed type of arguments for .byte, {}", line);

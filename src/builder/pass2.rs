@@ -53,7 +53,10 @@ impl Context for Pass2Context {
     }
 
     fn get_special(&self, name: &String) -> Option<Expr> {
-        self.special.borrow().get(name).map(|x| x.clone())
+        self.special
+            .borrow()
+            .get(&name.to_lowercase())
+            .map(|x| x.clone())
     }
 
     fn set_def(&self, name: String, value: Reg8) -> Option<Reg8> {
@@ -188,6 +191,18 @@ fn pass_2_internal(segment: &Segment, context: &Pass2Context) -> Result<Vec<u8>,
                             data.len() as u32
                         };
                         code_fragment.extend(data);
+                    }
+                }
+                Directive::Byte => {
+                    if let DirectiveOps::OpList(args) = d_op {
+                        if let Operand::E(expr) = &args[0] {
+                            if let Expr::Const(n) = expr {
+                                cur_address += *n as u32;
+                                for _ in 0..*n {
+                                    code_fragment.push(0x0);
+                                }
+                            }
+                        }
                     }
                 }
                 Directive::Def => {
