@@ -137,12 +137,12 @@ parser! {
 
         rule op() -> &'input str
             = $("wdr" / "tst" / "swap" / "subi" / "sub" / "sts" / "std" / "st" / "spm"
-            / "sleep" / "ser" / "sbr" / "sbiw" / "sbci" / "sbc" / "ror" / "rol" / "rjmp"
+            / "sleep" / "ser" / "sbr" / "sbiw" / "sbi" / "sbci" / "sbc" / "ror" / "rol" / "rjmp"
             / "reti" / "ret" / "rcall" / "push" / "pop" / "out" / "ori" / "or" / "nop"
             / "neg" / "mulsu" / "muls" / "mul" / "movw" / "mov" / "lsr" / "lsl" / "lpm"
             / "lds" / "ldi" / "ldd" / "ld" / "jmp" / "inc" / "in" / "ijmp" / "icall"
             / "fmulsu" / "fmuls" / "fmul" / "eor" / "elpm" / "eijmp" / "eicall" / "dec"
-            / "cpse" / "cpi" / "cpc" / "cp" / "com" / "clr" / "cbr" / "call" / "bset"
+            / "cpse" / "cpi" / "cpc" / "cp" / "com" / "clr" / "cbr" / "cbi" / "call" / "bset"
             / "break" / "bclr" / "asr" / "andi" / "and" / "adiw" / "add" / "adc")
 
         pub rule standard_operation() -> Operation

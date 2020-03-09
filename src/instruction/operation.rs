@@ -205,6 +205,10 @@ pub enum Operation {
     In,
     /// Out to I/O location
     Out,
+    /// Clear bit in I/O location
+    Cbi,
+    /// Set bit in I/O location
+    Sbi,
     Push,
     Pop,
 
@@ -546,6 +550,16 @@ impl Operation {
             Operation::Out => Info {
                 len: 1,
                 op_code: 0xb800,
+            },
+            // P, b     1001 1000 PPPP Pbbb
+            Operation::Cbi => Info {
+                len: 1,
+                op_code: 0x9800,
+            },
+            // P, b     1001 1010 PPPP Pbbb
+            Operation::Sbi => Info {
+                len: 1,
+                op_code: 0x9a00,
             },
             // Rr       1001 001r rrrr 1111
             Operation::Push => Info {
