@@ -1,21 +1,19 @@
 # AVRA-RS
 
-*Assembler for Microchip(near Atmel) AVR microcontroller family*
+*Assembler for Microchip AVR Microcontroller family (similar to Atmel).*
 
-AVRA-RS Rust rewrites version of AVRA (https://github.com/hsoft/avra).
-I create AVRA-RS because original software has some issues and mistakes and I can't fix it.
-But after I change project mission and targets.
+AVRA-RS is a Rust rewrite of [AVRA](https://github.com/hsoft/avra). I have created AVRA-RS to fix
+various shortcomings of the original software. This project now became something more.
 
-First of all I need to say - it is not full implementation of original assembler and it has 
-some differences front original AVRA. For example everything constructions have tests -
-fully as possible.
+First of all, this is not a complete implementation of the original assembler. It also has some
+important differences, for example, it is tested as much as possible.
 
-## Differece between AVRA-RS and AVRA
 
-AVRA-RS has most full implementation of directives and assembler commands, but not supported any extra options of
-AVRA
+## Differences between AVRA-RS and AVRA
 
-AVRA-RS support ATmega and ATtiny mcus but for ATtiny mcus not supported correct lds/sts commands.
+* AVRA-RS contains full implementation of assembler opcodes and directives. It does not, however,
+  support full command-line options of AVRA.
+* AVRA-RS supports ATmega and ATtiny MCUs, but without correct lds/sts support on ATtiny.
 
 ## Build and Install
 
