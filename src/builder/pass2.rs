@@ -165,23 +165,15 @@ fn pass_2_internal(segment: &Segment, context: &Pass2Context) -> Result<Vec<u8>,
                 }
             }
             Item::Directive(d, d_op) => match d {
-                Directive::Db => {
+                Directive::Db | Directive::Dw | Directive::Dd | Directive::Dq => {
                     if let DirectiveOps::OpList(_) = d_op {
-                        let data = match d_op.get_bytes(context) {
-                            Ok(ok) => ok,
-                            Err(e) => bail!("{}, {}", e, line),
-                        };
-                        cur_address += if let SegmentType::Code = segment.t {
-                            data.len() as u32 / 2
-                        } else {
-                            data.len() as u32
-                        };
-                        code_fragment.extend(data);
-                    }
-                }
-                Directive::Dw => {
-                    if let DirectiveOps::OpList(_) = d_op {
-                        let data = match d_op.get_words(context) {
+                        let data = match match d {
+                            Directive::Db => d_op.get_bytes(context),
+                            Directive::Dw => d_op.get_words(context),
+                            Directive::Dd => d_op.get_double_words(context),
+                            Directive::Dq => d_op.get_quad_words(context),
+                            _ => bail!("Could not use other options for non byte directives!"),
+                        } {
                             Ok(ok) => ok,
                             Err(e) => bail!("{}, {}", e, line),
                         };
@@ -410,7 +402,7 @@ data:
     }
 
     #[test]
-    fn check_db_dw() {
+    fn check_db_dw_dd_dq() {
         let parse_result = parse_str(
             "
         .equ end = 0
@@ -450,6 +442,49 @@ data_w:
             BuildResultPass2 {
                 code_start_address: 0x0,
                 code: vec![0x21, 0xe0, 0x44, 0xff, 0x0, 0x0, 0x4e, 0xda],
+                eeprom_start_address: 0x0,
+                eeprom: vec![],
+            }
+        );
+
+        let parse_result = parse_str(
+            "
+        ldi r18, data_d
+data_d:
+        .dd 0x12345678, 0x9abcdef0
+        ",
+        );
+        let post_parse_result = build_pass_0(parse_result.unwrap());
+
+        let build_result = build_pass_2(build_pass_1(post_parse_result.unwrap()).unwrap());
+        assert_eq!(
+            build_result.unwrap(),
+            BuildResultPass2 {
+                code_start_address: 0x0,
+                code: vec![0x21, 0xe0, 0x78, 0x56, 0x34, 0x12, 0xf0, 0xde, 0xbc, 0x9a],
+                eeprom_start_address: 0x0,
+                eeprom: vec![],
+            }
+        );
+
+        let parse_result = parse_str(
+            "
+        ldi r18, data_q
+data_q:
+        .dq 0x1, 0x1000000000011000
+        ",
+        );
+        let post_parse_result = build_pass_0(parse_result.unwrap());
+
+        let build_result = build_pass_2(build_pass_1(post_parse_result.unwrap()).unwrap());
+        assert_eq!(
+            build_result.unwrap(),
+            BuildResultPass2 {
+                code_start_address: 0x0,
+                code: vec![
+                    0x21, 0xe0, 0x1, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x10, 0x1, 0x0, 0x0,
+                    0x0, 0x0, 0x10
+                ],
                 eeprom_start_address: 0x0,
                 eeprom: vec![],
             }

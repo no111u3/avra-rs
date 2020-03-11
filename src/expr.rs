@@ -63,6 +63,28 @@ impl Expr {
         }
     }
 
+    pub fn get_double_words(&self, constants: &dyn Context) -> Result<[u8; 4], ExprRunError> {
+        let value = self.run(constants)?;
+        if value > std::u32::MAX as i64 || value < std::i32::MIN as i64 {
+            Err(ExprRunError::ResultDoesntFit(format!(
+                "0x{} > 0xFFFF_FFFF This is invalid because the value needs to fit in word",
+                value
+            )))
+        } else {
+            let mut result = [0, 0, 0, 0];
+            LittleEndian::write_u32(&mut result, value as u32);
+            Ok(result)
+        }
+    }
+
+    pub fn get_quad_words(&self, constants: &dyn Context) -> Result<[u8; 8], ExprRunError> {
+        let value = self.run(constants)?;
+
+        let mut result = [0, 0, 0, 0, 0, 0, 0, 0];
+        LittleEndian::write_u64(&mut result, value as u64);
+        Ok(result)
+    }
+
     pub fn get_byte(&self, constants: &dyn Context) -> Result<u8, ExprRunError> {
         let value = self.run(constants)?;
         if value > 0xFF || value < -128 {

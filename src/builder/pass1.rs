@@ -134,20 +134,23 @@ fn pass_1_internal(
                                 bail!("Not allowed type of arguments for .db, {}", line);
                             }
                         }
-                        Directive::Dw => {
+                        Directive::Dw | Directive::Dd | Directive::Dq => {
                             if let DirectiveOps::OpList(args) = d_op {
+                                let item_size = match d {
+                                    Directive::Dw => 2,
+                                    Directive::Dd => 4,
+                                    Directive::Dq => 8,
+                                    _ => 0,
+                                };
                                 cur_address += match segment.t {
-                                    SegmentType::Code => d_op.len() as u32,
-                                    SegmentType::Eeprom => d_op.len() as u32 * 2,
+                                    SegmentType::Code => d_op.len() as u32 * (item_size / 2),
+                                    SegmentType::Eeprom => d_op.len() as u32 * item_size,
                                     _ => bail!(".dw are not allowed in data segment, {}", line),
                                 };
 
                                 out_items.push((
                                     *line,
-                                    Item::Directive(
-                                        Directive::Dw,
-                                        DirectiveOps::OpList(args.clone()),
-                                    ),
+                                    Item::Directive(d.clone(), DirectiveOps::OpList(args.clone())),
                                 ));
                             } else {
                                 bail!("Not allowed type of arguments for .db, {}", line);
@@ -483,6 +486,8 @@ data_w:
         .cseg
 m1:
         ldi r18, data_w
+data_d: .dd 0x12345678, 0x9abcdef0
+data_q: .dq 0x1, 0x1000000000011000
         ",
         );
         let post_parse_result = build_pass_0(parse_result.unwrap());
@@ -558,19 +563,47 @@ m1:
                         address: 0,
                     },
                     Segment {
-                        items: vec![(
-                            CodePoint {
-                                line_num: 10,
-                                num: 2
-                            },
-                            Item::Instruction(
-                                Operation::Ldi,
-                                vec![
-                                    InstructionOps::R8(Reg8::R18),
-                                    InstructionOps::E(Expr::Ident("data_w".to_string()))
-                                ]
-                            )
-                        ),],
+                        items: vec![
+                            (
+                                CodePoint {
+                                    line_num: 10,
+                                    num: 2
+                                },
+                                Item::Instruction(
+                                    Operation::Ldi,
+                                    vec![
+                                        InstructionOps::R8(Reg8::R18),
+                                        InstructionOps::E(Expr::Ident("data_w".to_string()))
+                                    ]
+                                ),
+                            ),
+                            (
+                                CodePoint {
+                                    line_num: 11,
+                                    num: 2
+                                },
+                                Item::Directive(
+                                    Directive::Dd,
+                                    DirectiveOps::OpList(vec![
+                                        Operand::E(Expr::Const(0x12345678)),
+                                        Operand::E(Expr::Const(0x9abcdef0))
+                                    ])
+                                )
+                            ),
+                            (
+                                CodePoint {
+                                    line_num: 12,
+                                    num: 2
+                                },
+                                Item::Directive(
+                                    Directive::Dq,
+                                    DirectiveOps::OpList(vec![
+                                        Operand::E(Expr::Const(0x1)),
+                                        Operand::E(Expr::Const(0x1000000000011000))
+                                    ])
+                                )
+                            ),
+                        ],
                         t: SegmentType::Code,
                         address: 2,
                     }
@@ -580,6 +613,8 @@ m1:
                     "data".to_string() => (SegmentType::Eeprom, 0),
                     "data_w".to_string() => (SegmentType::Eeprom, 0xf),
                     "m1".to_string() => (SegmentType::Code, 2),
+                    "data_d".to_string() => (SegmentType::Code, 3),
+                    "data_q".to_string() => (SegmentType::Code, 7),
                 },
                 device: Device::new(0)
             }

@@ -112,6 +112,8 @@ impl Directive {
         match self {
             Directive::Db
             | Directive::Dw
+            | Directive::Dd
+            | Directive::Dq
             | Directive::Set
             | Directive::Def
             | Directive::Undef
@@ -355,6 +357,20 @@ impl Operand {
             Operand::S(_) => bail!("not allowed to convert string as 2 bytes array"),
         }
     }
+
+    pub fn get_double_words(&self, e_p: &dyn Context) -> Result<Vec<u8>, Error> {
+        match self {
+            Operand::E(expr) => Ok(expr.get_double_words(e_p)?.to_vec()),
+            Operand::S(_) => bail!("not allowed to convert string as 2 bytes array"),
+        }
+    }
+
+    pub fn get_quad_words(&self, e_p: &dyn Context) -> Result<Vec<u8>, Error> {
+        match self {
+            Operand::E(expr) => Ok(expr.get_quad_words(e_p)?.to_vec()),
+            Operand::S(_) => bail!("not allowed to convert string as 2 bytes array"),
+        }
+    }
 }
 
 #[derive(Clone, PartialEq, Eq, Debug, Display)]
@@ -391,6 +407,34 @@ impl DirectiveOps {
                 let mut bytes = vec![];
                 for item in items {
                     bytes.extend(item.get_words(constants)?);
+                }
+
+                Ok(bytes)
+            }
+            DirectiveOps::Assign(_, _) => bail!("Cannot convert assignment to words"),
+        }
+    }
+
+    pub fn get_double_words(&self, constants: &dyn Context) -> Result<Vec<u8>, Error> {
+        match self {
+            DirectiveOps::OpList(items) => {
+                let mut bytes = vec![];
+                for item in items {
+                    bytes.extend(item.get_double_words(constants)?);
+                }
+
+                Ok(bytes)
+            }
+            DirectiveOps::Assign(_, _) => bail!("Cannot convert assignment to words"),
+        }
+    }
+
+    pub fn get_quad_words(&self, constants: &dyn Context) -> Result<Vec<u8>, Error> {
+        match self {
+            DirectiveOps::OpList(items) => {
+                let mut bytes = vec![];
+                for item in items {
+                    bytes.extend(item.get_quad_words(constants)?);
                 }
 
                 Ok(bytes)
@@ -673,7 +717,7 @@ mod parser_tests {
     }
 
     #[test]
-    fn check_db_dw() {
+    fn check_db_dw_dd_dq() {
         let parse_result = parse_str("ldi r16, data\ndata:\n.db 15, 26, \"Hello, World\", end");
         assert_eq!(
             parse_result.unwrap(),
@@ -759,6 +803,159 @@ mod parser_tests {
                             },
                             Item::Directive(
                                 Directive::Dw,
+                                DirectiveOps::OpList(vec![
+                                    Operand::E(Expr::Const(0xff44)),
+                                    Operand::E(Expr::Ident("end".to_string())),
+                                    Operand::E(Expr::Const(0xda4e))
+                                ])
+                            )
+                        )
+                    ],
+                    t: SegmentType::Code,
+                    address: 0
+                }],
+                equs: HashMap::new(),
+                defines: hashmap! {},
+                macroses: hashmap! {},
+                device: Some(Device::new(0)),
+            }
+        );
+
+        let parse_result = parse_str("ldi r18, data_w\ndata_w:\n.dw 0xff44, end, 0xda4e");
+        assert_eq!(
+            parse_result.unwrap(),
+            ParseResult {
+                segments: vec![Segment {
+                    items: vec![
+                        (
+                            CodePoint {
+                                line_num: 1,
+                                num: 2
+                            },
+                            Item::Instruction(
+                                Operation::Ldi,
+                                vec![
+                                    InstructionOps::R8(Reg8::R18),
+                                    InstructionOps::E(Expr::Ident("data_w".to_string()))
+                                ]
+                            )
+                        ),
+                        (
+                            CodePoint {
+                                line_num: 2,
+                                num: 1
+                            },
+                            Item::Label("data_w".to_string())
+                        ),
+                        (
+                            CodePoint {
+                                line_num: 3,
+                                num: 2
+                            },
+                            Item::Directive(
+                                Directive::Dw,
+                                DirectiveOps::OpList(vec![
+                                    Operand::E(Expr::Const(0xff44)),
+                                    Operand::E(Expr::Ident("end".to_string())),
+                                    Operand::E(Expr::Const(0xda4e))
+                                ])
+                            )
+                        )
+                    ],
+                    t: SegmentType::Code,
+                    address: 0
+                }],
+                equs: HashMap::new(),
+                defines: hashmap! {},
+                macroses: hashmap! {},
+                device: Some(Device::new(0)),
+            }
+        );
+
+        let parse_result = parse_str("ldi r18, data_w\ndata_w:\n.dd 0xff44, end, 0xda4e");
+        assert_eq!(
+            parse_result.unwrap(),
+            ParseResult {
+                segments: vec![Segment {
+                    items: vec![
+                        (
+                            CodePoint {
+                                line_num: 1,
+                                num: 2
+                            },
+                            Item::Instruction(
+                                Operation::Ldi,
+                                vec![
+                                    InstructionOps::R8(Reg8::R18),
+                                    InstructionOps::E(Expr::Ident("data_w".to_string()))
+                                ]
+                            )
+                        ),
+                        (
+                            CodePoint {
+                                line_num: 2,
+                                num: 1
+                            },
+                            Item::Label("data_w".to_string())
+                        ),
+                        (
+                            CodePoint {
+                                line_num: 3,
+                                num: 2
+                            },
+                            Item::Directive(
+                                Directive::Dd,
+                                DirectiveOps::OpList(vec![
+                                    Operand::E(Expr::Const(0xff44)),
+                                    Operand::E(Expr::Ident("end".to_string())),
+                                    Operand::E(Expr::Const(0xda4e))
+                                ])
+                            )
+                        )
+                    ],
+                    t: SegmentType::Code,
+                    address: 0
+                }],
+                equs: HashMap::new(),
+                defines: hashmap! {},
+                macroses: hashmap! {},
+                device: Some(Device::new(0)),
+            }
+        );
+
+        let parse_result = parse_str("ldi r18, data_w\ndata_w:\n.dq 0xff44, end, 0xda4e");
+        assert_eq!(
+            parse_result.unwrap(),
+            ParseResult {
+                segments: vec![Segment {
+                    items: vec![
+                        (
+                            CodePoint {
+                                line_num: 1,
+                                num: 2
+                            },
+                            Item::Instruction(
+                                Operation::Ldi,
+                                vec![
+                                    InstructionOps::R8(Reg8::R18),
+                                    InstructionOps::E(Expr::Ident("data_w".to_string()))
+                                ]
+                            )
+                        ),
+                        (
+                            CodePoint {
+                                line_num: 2,
+                                num: 1
+                            },
+                            Item::Label("data_w".to_string())
+                        ),
+                        (
+                            CodePoint {
+                                line_num: 3,
+                                num: 2
+                            },
+                            Item::Directive(
+                                Directive::Dq,
                                 DirectiveOps::OpList(vec![
                                     Operand::E(Expr::Const(0xff44)),
                                     Operand::E(Expr::Ident("end".to_string())),
