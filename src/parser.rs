@@ -11,7 +11,7 @@ use std::{env, fmt};
 
 use crate::context::Context;
 use crate::device::Device;
-use crate::directive::{Directive, DirectiveOps};
+use crate::directive::{Directive, Operand};
 use crate::document::{document, Document};
 use crate::expr::Expr;
 use crate::instruction::{operation::Operation, InstructionOps};
@@ -36,8 +36,21 @@ impl fmt::Display for CodePoint {
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
+pub enum DataDefine {
+    Db,
+    Dw,
+    Dd,
+    Dq,
+}
+
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Item {
-    Directive(Directive, DirectiveOps),
+    ReserveData(i64),
+    Data(DataDefine, Vec<Operand>),
+    Def(String, Expr),
+    Undef(String),
+    Set(String, Expr),
+    Pragma(Vec<Operand>),
     Instruction(Operation, Vec<InstructionOps>),
     Label(String),
 }

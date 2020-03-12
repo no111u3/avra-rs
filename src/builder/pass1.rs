@@ -4,9 +4,9 @@ use std::collections::HashMap;
 
 use crate::builder::pass0::BuildResultPass0;
 use crate::device::Device;
-use crate::directive::{Directive, DirectiveOps, Operand};
+use crate::directive::{GetData, Operand};
 use crate::expr::Expr;
-use crate::parser::{CodePoint, Item, Segment, SegmentType};
+use crate::parser::{CodePoint, DataDefine, Item, Segment, SegmentType};
 
 use failure::{bail, Error};
 
@@ -90,103 +90,66 @@ fn pass_1_internal(
                     bail!("Identifier {} is used twice, {}", name, line);
                 }
             }
-            another_item => {
-                if let Item::Instruction(op, _) = &another_item {
-                    match segment.t {
+            Item::Instruction(op, _) => match segment.t {
+                SegmentType::Code => {
+                    cur_address += op.info().len;
+                    out_items.push((*line, item.clone()));
+                }
+                _ => bail!(
+                    "instructions are not allowed in {} segment, {}",
+                    segment.t,
+                    line
+                ),
+            },
+            Item::Set(_, _) | Item::Def(_, _) | Item::Undef(_) => {
+                out_items.push((*line, item.clone()));
+            }
+            Item::Data(item_type, items) => match item_type {
+                DataDefine::Db => {
+                    let mut items = items.clone();
+
+                    cur_address += match segment.t {
                         SegmentType::Code => {
-                            cur_address += op.info().len;
-                            out_items.push((*line, another_item.clone()));
-                        }
-                        _ => bail!(
-                            "instructions are not allowed in {} segment, {}",
-                            segment.t,
-                            line
-                        ),
-                    }
-                } else if let Item::Directive(d, d_op) = &another_item {
-                    match d {
-                        Directive::Set | Directive::Def | Directive::Undef => {
-                            out_items.push((*line, another_item.clone()));
-                        }
-                        Directive::Db => {
-                            if let DirectiveOps::OpList(args) = d_op {
-                                let mut args = args.clone();
-
-                                cur_address += match segment.t {
-                                    SegmentType::Code => {
-                                        (if d_op.len() % 2 == 1 {
-                                            args.push(Operand::E(Expr::Const(0x0)));
-                                            d_op.len() + 1
-                                        } else {
-                                            d_op.len()
-                                        }) as u32
-                                            / 2
-                                    }
-                                    SegmentType::Eeprom => d_op.len() as u32,
-                                    _ => bail!(".db are not allowed in data segment, {}", line),
-                                };
-
-                                out_items.push((
-                                    *line,
-                                    Item::Directive(Directive::Db, DirectiveOps::OpList(args)),
-                                ));
+                            (if items.actual_len() % 2 == 1 {
+                                items.push(Operand::E(Expr::Const(0x0)));
+                                items.actual_len()
                             } else {
-                                bail!("Not allowed type of arguments for .db, {}", line);
-                            }
+                                items.actual_len()
+                            }) as u32
+                                / 2
                         }
-                        Directive::Dw | Directive::Dd | Directive::Dq => {
-                            if let DirectiveOps::OpList(args) = d_op {
-                                let item_size = match d {
-                                    Directive::Dw => 2,
-                                    Directive::Dd => 4,
-                                    Directive::Dq => 8,
-                                    _ => 0,
-                                };
-                                cur_address += match segment.t {
-                                    SegmentType::Code => d_op.len() as u32 * (item_size / 2),
-                                    SegmentType::Eeprom => d_op.len() as u32 * item_size,
-                                    _ => bail!(".dw are not allowed in data segment, {}", line),
-                                };
+                        SegmentType::Eeprom => items.actual_len() as u32,
+                        _ => bail!(".db are not allowed in data segment, {}", line),
+                    };
 
-                                out_items.push((
-                                    *line,
-                                    Item::Directive(d.clone(), DirectiveOps::OpList(args.clone())),
-                                ));
-                            } else {
-                                bail!("Not allowed type of arguments for .db, {}", line);
-                            }
-                        }
-                        Directive::Byte => match segment.t {
-                            SegmentType::Data | SegmentType::Eeprom => {
-                                if let DirectiveOps::OpList(args) = d_op {
-                                    if args.len() > 1 {
-                                        bail!("Too many arguments for {}", d);
-                                    }
-                                    if let Operand::E(expr) = &args[0] {
-                                        if let Expr::Const(n) = expr {
-                                            cur_address += *n as u32;
-                                        }
-                                    }
-                                    if segment.t == SegmentType::Eeprom {
-                                        out_items.push((
-                                            *line,
-                                            Item::Directive(
-                                                Directive::Byte,
-                                                DirectiveOps::OpList(args.clone()),
-                                            ),
-                                        ));
-                                    }
-                                } else {
-                                    bail!("Not allowed type of arguments for .byte, {}", line);
-                                }
-                            }
-                            _ => bail!(".byte are not allowed in {} segment, {}", segment.t, line),
-                        },
-                        Directive::Pragma => {}
-                        _ => bail!("unsupported directive {}, {}", d, line),
+                    out_items.push((*line, Item::Data(DataDefine::Db, items)));
+                }
+                DataDefine::Dw | DataDefine::Dd | DataDefine::Dq => {
+                    let item_size = match item_type {
+                        DataDefine::Dw => 2,
+                        DataDefine::Dd => 4,
+                        DataDefine::Dq => 8,
+                        _ => 0,
+                    };
+                    cur_address += match segment.t {
+                        SegmentType::Code => items.len() as u32 * (item_size / 2),
+                        SegmentType::Eeprom => items.len() as u32 * item_size,
+                        _ => bail!(".dw are not allowed in data segment, {}", line),
+                    };
+
+                    out_items.push((*line, item.clone()));
+                }
+            },
+            Item::ReserveData(size) => match segment.t {
+                SegmentType::Data | SegmentType::Eeprom => {
+                    cur_address += *size as u32;
+                    if segment.t == SegmentType::Eeprom {
+                        out_items.push((*line, item.clone()));
                     }
                 }
-            }
+                _ => bail!(".byte are not allowed in {} segment, {}", segment.t, line),
+            },
+            Item::Pragma(_) => {}
         }
     }
 
@@ -423,15 +386,15 @@ m1:
                                 line_num: 4,
                                 num: 2
                             },
-                            Item::Directive(
-                                Directive::Db,
-                                DirectiveOps::OpList(vec![
+                            Item::Data(
+                                DataDefine::Db,
+                                vec![
                                     Operand::E(Expr::Const(15)),
                                     Operand::E(Expr::Const(26)),
                                     Operand::S("Hello, World".to_string()),
                                     Operand::E(Expr::Ident("end".to_string())),
                                     Operand::E(Expr::Const(0)),
-                                ]),
+                                ],
                             )
                         ),
                         (
@@ -439,13 +402,13 @@ m1:
                                 line_num: 6,
                                 num: 2
                             },
-                            Item::Directive(
-                                Directive::Dw,
-                                DirectiveOps::OpList(vec![
+                            Item::Data(
+                                DataDefine::Dw,
+                                vec![
                                     Operand::E(Expr::Const(0xff44)),
                                     Operand::E(Expr::Ident("end".to_string())),
                                     Operand::E(Expr::Const(0xda4e))
-                                ])
+                                ]
                             )
                         ),
                         (
@@ -534,14 +497,14 @@ data_q: .dq 0x1, 0x1000000000011000
                                     line_num: 5,
                                     num: 2
                                 },
-                                Item::Directive(
-                                    Directive::Db,
-                                    DirectiveOps::OpList(vec![
+                                Item::Data(
+                                    DataDefine::Db,
+                                    vec![
                                         Operand::E(Expr::Const(15)),
                                         Operand::E(Expr::Const(26)),
                                         Operand::S("Hello, World".to_string()),
                                         Operand::E(Expr::Ident("end".to_string())),
-                                    ]),
+                                    ],
                                 )
                             ),
                             (
@@ -549,13 +512,13 @@ data_q: .dq 0x1, 0x1000000000011000
                                     line_num: 7,
                                     num: 2
                                 },
-                                Item::Directive(
-                                    Directive::Dw,
-                                    DirectiveOps::OpList(vec![
+                                Item::Data(
+                                    DataDefine::Dw,
+                                    vec![
                                         Operand::E(Expr::Const(0xff44)),
                                         Operand::E(Expr::Ident("end".to_string())),
                                         Operand::E(Expr::Const(0xda4e))
-                                    ])
+                                    ]
                                 )
                             ),
                         ],
@@ -582,12 +545,12 @@ data_q: .dq 0x1, 0x1000000000011000
                                     line_num: 11,
                                     num: 2
                                 },
-                                Item::Directive(
-                                    Directive::Dd,
-                                    DirectiveOps::OpList(vec![
+                                Item::Data(
+                                    DataDefine::Dd,
+                                    vec![
                                         Operand::E(Expr::Const(0x12345678)),
                                         Operand::E(Expr::Const(0x9abcdef0))
-                                    ])
+                                    ]
                                 )
                             ),
                             (
@@ -595,12 +558,12 @@ data_q: .dq 0x1, 0x1000000000011000
                                     line_num: 12,
                                     num: 2
                                 },
-                                Item::Directive(
-                                    Directive::Dq,
-                                    DirectiveOps::OpList(vec![
+                                Item::Data(
+                                    DataDefine::Dq,
+                                    vec![
                                         Operand::E(Expr::Const(0x1)),
                                         Operand::E(Expr::Const(0x1000000000011000))
-                                    ])
+                                    ]
                                 )
                             ),
                         ],

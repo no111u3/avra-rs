@@ -3,10 +3,10 @@
 use crate::builder::pass1::BuildResultPass1;
 use crate::context::Context;
 use crate::device::Device;
-use crate::directive::{Directive, DirectiveOps, Operand};
+use crate::directive::GetData;
 use crate::expr::Expr;
 use crate::instruction::{process, register::Reg8};
-use crate::parser::{Item, Segment, SegmentType};
+use crate::parser::{DataDefine, Item, Segment, SegmentType};
 
 use std::collections::HashMap;
 use std::str::FromStr;
@@ -164,80 +164,57 @@ fn pass_2_internal(segment: &Segment, context: &Pass2Context) -> Result<Vec<u8>,
                     )
                 }
             }
-            Item::Directive(d, d_op) => match d {
-                Directive::Db | Directive::Dw | Directive::Dd | Directive::Dq => {
-                    if let DirectiveOps::OpList(_) = d_op {
-                        let data = match match d {
-                            Directive::Db => d_op.get_bytes(context),
-                            Directive::Dw => d_op.get_words(context),
-                            Directive::Dd => d_op.get_double_words(context),
-                            Directive::Dq => d_op.get_quad_words(context),
-                            _ => bail!("Could not use other options for non byte directives!"),
-                        } {
-                            Ok(ok) => ok,
-                            Err(e) => bail!("{}, {}", e, line),
-                        };
-                        cur_address += if let SegmentType::Code = segment.t {
-                            data.len() as u32 / 2
-                        } else {
-                            data.len() as u32
-                        };
-                        code_fragment.extend(data);
-                    }
+            Item::Data(item_type, items) => {
+                let data = match item_type {
+                    DataDefine::Db => items.get_bytes(context),
+                    DataDefine::Dw => items.get_words(context),
+                    DataDefine::Dd => items.get_double_words(context),
+                    DataDefine::Dq => items.get_quad_words(context),
+                }?;
+                cur_address += if let SegmentType::Code = segment.t {
+                    data.len() as u32 / 2
+                } else {
+                    data.len() as u32
+                };
+                code_fragment.extend(data);
+            }
+            Item::ReserveData(size) => {
+                cur_address += *size as u32;
+                for _ in 0..*size {
+                    code_fragment.push(0x0);
                 }
-                Directive::Byte => {
-                    if let DirectiveOps::OpList(args) = d_op {
-                        if let Operand::E(expr) = &args[0] {
-                            if let Expr::Const(n) = expr {
-                                cur_address += *n as u32;
-                                for _ in 0..*n {
-                                    code_fragment.push(0x0);
-                                }
-                            }
-                        }
-                    }
+            }
+            Item::Def(alias, Expr::Ident(register)) => {
+                if let Some(_) = context.set_def(
+                    alias.to_lowercase(),
+                    Reg8::from_str(register.to_lowercase().as_str()).unwrap(),
+                ) {
+                    // TODO: add display current string of mistake and previous location
+                    bail!("Identifier {} is used twice, {}", alias, line);
                 }
-                Directive::Def => {
-                    if let DirectiveOps::Assign(Expr::Ident(alias), Expr::Ident(register)) = d_op {
-                        if let Some(_) = context.set_def(
-                            alias.to_lowercase(),
-                            Reg8::from_str(register.to_lowercase().as_str()).unwrap(),
-                        ) {
-                            // TODO: add display current string of mistake and previous location
-                            bail!("Identifier {} is used twice, {}", alias, line);
-                        }
-                    }
+            }
+            Item::Undef(alias) => {
+                if let None = context.defs.borrow_mut().remove(alias) {
+                    bail!("Identifier {} isn't defined, {}", alias, line);
                 }
-                Directive::Undef => {
-                    if let DirectiveOps::OpList(values) = d_op {
-                        if let Operand::E(Expr::Ident(name)) = &values[0] {
-                            if let None = context.defs.borrow_mut().remove(name) {
-                                bail!("Identifier {} isn't defined, {}", name, line);
-                            }
-                        }
+            }
+            Item::Set(name, expr) => {
+                let value = expr.run(context)?;
+                if context.exist(name) {
+                    let mut sets = context.sets.borrow_mut();
+                    if let Some(_) = sets.get(name) {
+                        sets.insert(name.clone(), Expr::Const(value));
+                    } else {
+                        // TODO: add display current string of mistake and previous location
+                        bail!("Identifier {} is used twice, {}", name, line);
                     }
+                } else {
+                    context
+                        .sets
+                        .borrow_mut()
+                        .insert(name.clone(), Expr::Const(value));
                 }
-                Directive::Set => {
-                    if let DirectiveOps::Assign(Expr::Ident(name), expr) = d_op {
-                        let value = expr.run(context)?;
-                        if context.exist(name) {
-                            let mut sets = context.sets.borrow_mut();
-                            if let Some(_) = sets.get(name) {
-                                sets.insert(name.clone(), Expr::Const(value));
-                            } else {
-                                // TODO: add display current string of mistake and previous location
-                                bail!("Identifier {} is used twice, {}", name, line);
-                            }
-                        } else {
-                            context
-                                .sets
-                                .borrow_mut()
-                                .insert(name.clone(), Expr::Const(value));
-                        }
-                    }
-                }
-                _ => {}
-            },
+            }
             _ => {}
         }
     }

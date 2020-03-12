@@ -5,7 +5,7 @@ use strum_macros::{Display, EnumString};
 use crate::device::{Device, DEVICES};
 use crate::expr::Expr;
 use crate::parser::{
-    parse_file_internal, CodePoint, Item, NextItem, ParseContext, Segment, SegmentType,
+    parse_file_internal, CodePoint, DataDefine, Item, NextItem, ParseContext, Segment, SegmentType,
 };
 
 use crate::context::Context;
@@ -110,16 +110,66 @@ impl Directive {
         } = context;
 
         match self {
-            Directive::Db
-            | Directive::Dw
-            | Directive::Dd
-            | Directive::Dq
-            | Directive::Set
-            | Directive::Def
-            | Directive::Undef
-            | Directive::Pragma
-            | Directive::Byte => {
-                context.push_to_last((point, Item::Directive(self.clone(), opts.clone())));
+            Directive::Db | Directive::Dw | Directive::Dd | Directive::Dq => {
+                if let DirectiveOps::OpList(args) = opts {
+                    let item_type = match self {
+                        Directive::Db => DataDefine::Db,
+                        Directive::Dw => DataDefine::Dw,
+                        Directive::Dd => DataDefine::Dd,
+                        Directive::Dq => DataDefine::Dq,
+                        _ => bail!("unknown argument for define data, {}", point),
+                    };
+                    context.push_to_last((point, Item::Data(item_type, args.clone())));
+                } else {
+                    bail!("Not allowed type of arguments for .db, {}", point);
+                }
+            }
+            Directive::Set | Directive::Def => {
+                if let DirectiveOps::Assign(Expr::Ident(name), expr) = opts {
+                    match self {
+                        Directive::Set => {
+                            context.push_to_last((point, Item::Set(name.clone(), expr.clone())))
+                        }
+                        Directive::Def => {
+                            context.push_to_last((point, Item::Def(name.clone(), expr.clone())))
+                        }
+                        _ => bail!("unknown argument for {} data, {}", self, point),
+                    };
+                } else {
+                    bail!("Not allowed type of arguments for .{}, {}", self, point);
+                }
+            }
+            Directive::Undef => {
+                if let DirectiveOps::OpList(values) = opts {
+                    if let Operand::E(Expr::Ident(name)) = &values[0] {
+                        context.push_to_last((point, Item::Undef(name.clone())))
+                    } else {
+                        bail!("Not allowed type of arguments for .{}, {}", self, point);
+                    }
+                } else {
+                    bail!("Not allowed type of arguments for .{}, {}", self, point);
+                }
+            }
+            Directive::Pragma => {
+                if let DirectiveOps::OpList(args) = opts {
+                    context.push_to_last((point, Item::Pragma(args.clone())));
+                } else {
+                    bail!("Not allowed type of arguments for .{}, {}", self, point);
+                }
+            }
+            Directive::Byte => {
+                if let DirectiveOps::OpList(args) = opts {
+                    if args.len() > 1 {
+                        bail!("Too many arguments for {}", self);
+                    }
+                    if let Operand::E(expr) = &args[0] {
+                        if let Expr::Const(n) = expr {
+                            context.push_to_last((point, Item::ReserveData(*n)));
+                        }
+                    }
+                } else {
+                    bail!("Not allowed type of arguments for .byte, {}", point);
+                }
             }
             Directive::Equ => {
                 if let DirectiveOps::Assign(name, value) = opts {
@@ -379,68 +429,50 @@ pub enum DirectiveOps {
     Assign(Expr, Expr),
 }
 
-impl DirectiveOps {
-    pub fn len(&self) -> usize {
-        match self {
-            DirectiveOps::OpList(items) => items.iter().fold(0, |acc, op| acc + op.len()),
-            DirectiveOps::Assign(_, _) => 1,
-        }
+pub trait GetData {
+    fn actual_len(&self) -> usize;
+    fn get_bytes(&self, constants: &dyn Context) -> Result<Vec<u8>, Error>;
+    fn get_words(&self, constants: &dyn Context) -> Result<Vec<u8>, Error>;
+    fn get_double_words(&self, constants: &dyn Context) -> Result<Vec<u8>, Error>;
+    fn get_quad_words(&self, constants: &dyn Context) -> Result<Vec<u8>, Error>;
+}
+
+impl GetData for Vec<Operand> {
+    fn actual_len(&self) -> usize {
+        self.iter().fold(0, |acc, op| acc + op.len())
     }
 
-    pub fn get_bytes(&self, constants: &dyn Context) -> Result<Vec<u8>, Error> {
-        match self {
-            DirectiveOps::OpList(items) => {
-                let mut bytes = vec![];
-                for item in items {
-                    bytes.extend(item.get_bytes(constants)?);
-                }
-
-                Ok(bytes)
-            }
-            DirectiveOps::Assign(_, _) => bail!("Cannot convert assignment to bytes"),
+    fn get_bytes(&self, constants: &dyn Context) -> Result<Vec<u8>, Error> {
+        let mut bytes = vec![];
+        for item in self {
+            bytes.extend(item.get_bytes(constants)?);
         }
+
+        Ok(bytes)
     }
-
-    pub fn get_words(&self, constants: &dyn Context) -> Result<Vec<u8>, Error> {
-        match self {
-            DirectiveOps::OpList(items) => {
-                let mut bytes = vec![];
-                for item in items {
-                    bytes.extend(item.get_words(constants)?);
-                }
-
-                Ok(bytes)
-            }
-            DirectiveOps::Assign(_, _) => bail!("Cannot convert assignment to words"),
+    fn get_words(&self, constants: &dyn Context) -> Result<Vec<u8>, Error> {
+        let mut bytes = vec![];
+        for item in self {
+            bytes.extend(item.get_words(constants)?);
         }
+
+        Ok(bytes)
     }
-
-    pub fn get_double_words(&self, constants: &dyn Context) -> Result<Vec<u8>, Error> {
-        match self {
-            DirectiveOps::OpList(items) => {
-                let mut bytes = vec![];
-                for item in items {
-                    bytes.extend(item.get_double_words(constants)?);
-                }
-
-                Ok(bytes)
-            }
-            DirectiveOps::Assign(_, _) => bail!("Cannot convert assignment to words"),
+    fn get_double_words(&self, constants: &dyn Context) -> Result<Vec<u8>, Error> {
+        let mut bytes = vec![];
+        for item in self {
+            bytes.extend(item.get_double_words(constants)?);
         }
+
+        Ok(bytes)
     }
-
-    pub fn get_quad_words(&self, constants: &dyn Context) -> Result<Vec<u8>, Error> {
-        match self {
-            DirectiveOps::OpList(items) => {
-                let mut bytes = vec![];
-                for item in items {
-                    bytes.extend(item.get_quad_words(constants)?);
-                }
-
-                Ok(bytes)
-            }
-            DirectiveOps::Assign(_, _) => bail!("Cannot convert assignment to words"),
+    fn get_quad_words(&self, constants: &dyn Context) -> Result<Vec<u8>, Error> {
+        let mut bytes = vec![];
+        for item in self {
+            bytes.extend(item.get_quad_words(constants)?);
         }
+
+        Ok(bytes)
     }
 }
 
@@ -749,14 +781,14 @@ mod parser_tests {
                                 line_num: 3,
                                 num: 2
                             },
-                            Item::Directive(
-                                Directive::Db,
-                                DirectiveOps::OpList(vec![
+                            Item::Data(
+                                DataDefine::Db,
+                                vec![
                                     Operand::E(Expr::Const(15)),
                                     Operand::E(Expr::Const(26)),
                                     Operand::S("Hello, World".to_string()),
                                     Operand::E(Expr::Ident("end".to_string())),
-                                ])
+                                ]
                             )
                         )
                     ],
@@ -801,13 +833,13 @@ mod parser_tests {
                                 line_num: 3,
                                 num: 2
                             },
-                            Item::Directive(
-                                Directive::Dw,
-                                DirectiveOps::OpList(vec![
+                            Item::Data(
+                                DataDefine::Dw,
+                                vec![
                                     Operand::E(Expr::Const(0xff44)),
                                     Operand::E(Expr::Ident("end".to_string())),
                                     Operand::E(Expr::Const(0xda4e))
-                                ])
+                                ]
                             )
                         )
                     ],
@@ -852,13 +884,13 @@ mod parser_tests {
                                 line_num: 3,
                                 num: 2
                             },
-                            Item::Directive(
-                                Directive::Dw,
-                                DirectiveOps::OpList(vec![
+                            Item::Data(
+                                DataDefine::Dw,
+                                vec![
                                     Operand::E(Expr::Const(0xff44)),
                                     Operand::E(Expr::Ident("end".to_string())),
                                     Operand::E(Expr::Const(0xda4e))
-                                ])
+                                ]
                             )
                         )
                     ],
@@ -903,13 +935,13 @@ mod parser_tests {
                                 line_num: 3,
                                 num: 2
                             },
-                            Item::Directive(
-                                Directive::Dd,
-                                DirectiveOps::OpList(vec![
+                            Item::Data(
+                                DataDefine::Dd,
+                                vec![
                                     Operand::E(Expr::Const(0xff44)),
                                     Operand::E(Expr::Ident("end".to_string())),
                                     Operand::E(Expr::Const(0xda4e))
-                                ])
+                                ]
                             )
                         )
                     ],
@@ -954,13 +986,13 @@ mod parser_tests {
                                 line_num: 3,
                                 num: 2
                             },
-                            Item::Directive(
-                                Directive::Dq,
-                                DirectiveOps::OpList(vec![
+                            Item::Data(
+                                DataDefine::Dq,
+                                vec![
                                     Operand::E(Expr::Const(0xff44)),
                                     Operand::E(Expr::Ident("end".to_string())),
                                     Operand::E(Expr::Const(0xda4e))
-                                ])
+                                ]
                             )
                         )
                     ],
@@ -1007,26 +1039,20 @@ mod parser_tests {
                                 line_num: 1,
                                 num: 2
                             },
-                            Item::Directive(
-                                Directive::Set,
-                                DirectiveOps::Assign(Expr::Ident("t".to_string()), Expr::Const(4))
-                            )
+                            Item::Set("t".to_string(), Expr::Const(4))
                         ),
                         (
                             CodePoint {
                                 line_num: 2,
                                 num: 2
                             },
-                            Item::Directive(
-                                Directive::Set,
-                                DirectiveOps::Assign(
-                                    Expr::Ident("t".to_string()),
-                                    Expr::Binary(Box::new(BinaryExpr {
-                                        left: Expr::Ident("t".to_string()),
-                                        operator: BinaryOperator::Add,
-                                        right: Expr::Const(1)
-                                    }))
-                                )
+                            Item::Set(
+                                "t".to_string(),
+                                Expr::Binary(Box::new(BinaryExpr {
+                                    left: Expr::Ident("t".to_string()),
+                                    operator: BinaryOperator::Add,
+                                    right: Expr::Const(1)
+                                }))
                             )
                         )
                     ],
@@ -1061,10 +1087,7 @@ mod parser_tests {
                                 line_num: 2,
                                 num: 2
                             },
-                            Item::Directive(
-                                Directive::Byte,
-                                DirectiveOps::OpList(vec![Operand::E(Expr::Const(1))])
-                            )
+                            Item::ReserveData(1)
                         ),
                         (
                             CodePoint {
@@ -1078,10 +1101,7 @@ mod parser_tests {
                                 line_num: 3,
                                 num: 2
                             },
-                            Item::Directive(
-                                Directive::Byte,
-                                DirectiveOps::OpList(vec![Operand::E(Expr::Const(2))])
-                            )
+                            Item::ReserveData(2),
                         ),
                     ],
                     t: SegmentType::Data,
