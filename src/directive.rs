@@ -71,9 +71,9 @@ pub enum Directive {
     IfNDef,
     /// Outputs a message string (unsupported)
     Message,
-    /// Define constant double words in program memory and EEPROM (unsupported)
+    /// Define constant double words in program memory and EEPROM
     Dd,
-    /// Define constant quad words in program memory and EEPROM (unsupported)
+    /// Define constant quad words in program memory and EEPROM
     Dq,
     /// Undefine register symbol
     Undef,
