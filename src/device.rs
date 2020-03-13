@@ -42,6 +42,7 @@ pub enum DisabledOptions {
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Device {
+    /// Flash size in words
     pub flash_size: u32,
     pub ram_start: u32,
     pub ram_size: u32,

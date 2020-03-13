@@ -103,11 +103,11 @@ fn main() {
             if opt.verbosity {
                 println!(
                     "Flash: {}({}) words(bytes) of {}({}), {:.2}%",
+                    built.code.len() / 2,
                     built.code.len(),
-                    built.code.len() * 2,
                     built.flash_size,
                     built.flash_size * 2,
-                    built.code.len() as f32 / built.flash_size as f32 * 100.
+                    built.code.len() as f32 / (built.flash_size * 2) as f32 * 100.
                 );
                 println!(
                     "EEPROM: {} bytes of {}, {:.2}%",

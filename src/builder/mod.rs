@@ -30,10 +30,10 @@ fn build_from_parsed(parsed: ParseResult) -> Result<BuildResult, Error> {
 
     let passed_2 = pass2(passed_1)?;
 
-    if passed_2.code.len() as u32 > passed_2.device.flash_size {
+    if passed_2.code.len() as u32 > passed_2.device.flash_size * 2 {
         bail!(
             "Flash size overdue by {} bytes",
-            passed_2.code.len() as u32 - passed_2.device.flash_size
+            passed_2.code.len() as u32 - passed_2.device.flash_size * 2
         )
     }
 
