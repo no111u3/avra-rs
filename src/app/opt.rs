@@ -15,4 +15,7 @@ pub struct Opt {
     /// Output eeprom file name, if not provided build in same name and same place as source file
     #[structopt(short, long, parse(from_os_str))]
     pub eeprom: Option<PathBuf>,
+    /// Verbosity mode
+    #[structopt(short, long)]
+    pub verbosity: bool,
 }

@@ -68,6 +68,10 @@ mod writer_tests {
         let result = generate_hex(&BuildResult {
             code: vec![],
             eeprom: vec![],
+            flash_size: 4194304,
+            eeprom_size: 65536,
+            ram_size: 0,
+            ram_filling: 0,
         })
         .unwrap();
 
@@ -84,6 +88,10 @@ mod writer_tests {
                 0x22, 0xe1,
             ],
             eeprom: vec![],
+            flash_size: 0,
+            eeprom_size: 0,
+            ram_size: 0,
+            ram_filling: 0,
         };
 
         let result = generate_hex(&build_result).unwrap();

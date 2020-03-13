@@ -99,6 +99,27 @@ fn main() {
             } else {
                 println!("Nothing to write of eeprom for file {}", file_name);
             }
+
+            if opt.verbosity {
+                println!(
+                    "Flash: {} bytes of {}, {:.2}%",
+                    built.code.len(),
+                    built.flash_size,
+                    built.code.len() as f32 / built.flash_size as f32 * 100.
+                );
+                println!(
+                    "EEPROM: {} bytes of {}, {:.2}%",
+                    built.eeprom.len(),
+                    built.eeprom_size,
+                    built.eeprom.len() as f32 / built.eeprom_size as f32 * 100.
+                );
+                println!(
+                    "RAM: {} bytes of {}, {:.2}%",
+                    built.ram_filling,
+                    built.ram_size,
+                    built.ram_filling as f32 / built.ram_size as f32 * 100.
+                );
+            }
         }
         Err(e) => {
             println!("Failed to build file {}, with error {}", file_name, e);

@@ -20,6 +20,8 @@ pub struct BuildResultPass1 {
     pub labels: HashMap<String, (SegmentType, u32)>,
     // device
     pub device: Device,
+    //
+    pub ram_filling: u32,
 }
 
 pub fn build_pass_1(parsed: BuildResultPass0) -> Result<BuildResultPass1, Error> {
@@ -57,11 +59,14 @@ pub fn build_pass_1(parsed: BuildResultPass0) -> Result<BuildResultPass1, Error>
         }
     }
 
+    let ram_filling = data_offset - device.ram_start;
+
     Ok(BuildResultPass1 {
         segments,
         equs: parsed.equs,
         labels,
         device,
+        ram_filling,
     })
 }
 
@@ -175,7 +180,8 @@ mod builder_tests {
                 segments: vec![],
                 equs: HashMap::new(),
                 labels: HashMap::new(),
-                device: Device::new(0)
+                device: Device::new(0),
+                ram_filling: 0,
             }
         );
     }
@@ -208,7 +214,8 @@ mod builder_tests {
                 }],
                 equs: HashMap::new(),
                 labels: hashmap! {"good_point".to_string() => (SegmentType::Code, 0)},
-                device: Device::new(0)
+                device: Device::new(0),
+                ram_filling: 0,
             }
         );
     }
@@ -265,7 +272,8 @@ mod builder_tests {
                     "good_point2".to_string() => (SegmentType::Code, 0x2),
 
                 },
-                device: Device::new(0)
+                device: Device::new(0),
+                ram_filling: 0,
             }
         );
 
@@ -295,7 +303,8 @@ mod builder_tests {
                     "good_point".to_string() => (SegmentType::Code, 0),
                     "good_point2".to_string() => (SegmentType::Code, 0x20),
                 },
-                device: Device::new(0)
+                device: Device::new(0),
+                ram_filling: 0,
             }
         );
 
@@ -331,7 +340,8 @@ mod builder_tests {
                     "good_point2".to_string() => (SegmentType::Data, 0x60),
                     "good_point3".to_string() => (SegmentType::Code, 0),
                 },
-                device: Device::new(0)
+                device: Device::new(0),
+                ram_filling: 0,
             }
         );
     }
@@ -434,7 +444,8 @@ m1:
                     "data_w".to_string() => (SegmentType::Code, 10),
                     "m1".to_string() => (SegmentType::Code, 13),
                 },
-                device: Device::new(0)
+                device: Device::new(0),
+                ram_filling: 0,
             }
         );
 
@@ -579,7 +590,8 @@ data_q: .dq 0x1, 0x1000000000011000
                     "data_d".to_string() => (SegmentType::Code, 3),
                     "data_q".to_string() => (SegmentType::Code, 7),
                 },
-                device: Device::new(0)
+                device: Device::new(0),
+                ram_filling: 0,
             }
         );
 
@@ -602,7 +614,8 @@ data_q: .dq 0x1, 0x1000000000011000
                     "data".to_string() => (SegmentType::Data, 0x60),
                     "counter".to_string() => (SegmentType::Data, 0x61),
                 },
-                device: Device::new(0)
+                device: Device::new(0),
+                ram_filling: 3,
             }
         );
     }

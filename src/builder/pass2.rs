@@ -78,6 +78,8 @@ pub struct BuildResultPass2 {
     pub code: Vec<u8>,
     pub eeprom_start_address: u32,
     pub eeprom: Vec<u8>,
+    pub device: Device,
+    pub ram_filling: u32,
 }
 
 pub fn build_pass_2(pass1: BuildResultPass1) -> Result<BuildResultPass2, Error> {
@@ -137,6 +139,8 @@ pub fn build_pass_2(pass1: BuildResultPass1) -> Result<BuildResultPass2, Error> 
         code,
         eeprom_start_address,
         eeprom,
+        device: context.device,
+        ram_filling: pass1.ram_filling,
     })
 }
 
@@ -239,6 +243,8 @@ mod builder_tests {
                 code: vec![],
                 eeprom_start_address: 0x0,
                 eeprom: vec![],
+                device: Device::new(0),
+                ram_filling: 0,
             }
         );
     }
@@ -263,6 +269,8 @@ mod builder_tests {
                 code: vec![0x00, 0x00, 0x08, 0x95, 0x58, 0x94, 0xd8, 0x94],
                 eeprom_start_address: 0x0,
                 eeprom: vec![],
+                device: Device::new(0),
+                ram_filling: 0,
             }
         );
     }
@@ -287,6 +295,8 @@ mod builder_tests {
                 code: vec![0xf, 0x92, 0x0, 0xc, 0x2, 0x94, 0x1f, 0x90],
                 eeprom_start_address: 0x0,
                 eeprom: vec![],
+                device: Device::new(0),
+                ram_filling: 0,
             }
         );
 
@@ -309,6 +319,8 @@ exit:
                 code: vec![0x11, 0x20, 0x2, 0xf4, 0xfe, 0xcf],
                 eeprom_start_address: 0x0,
                 eeprom: vec![],
+                device: Device::new(0),
+                ram_filling: 0,
             }
         );
     }
@@ -334,6 +346,8 @@ data:
                 code: vec![0x6, 0xe0, 0x0, 0x2e, 0xf, 0x5f, 0x0, 0x93, 0x5, 0x0],
                 eeprom_start_address: 0x0,
                 eeprom: vec![],
+                device: Device::new(0),
+                ram_filling: 0,
             }
         );
 
@@ -355,6 +369,8 @@ data:
                 code: vec![0x1c, 0x91, 0x29, 0x91, 0x32, 0x91, 0x3d, 0x93],
                 eeprom_start_address: 0x0,
                 eeprom: vec![],
+                device: Device::new(0),
+                ram_filling: 0,
             }
         );
 
@@ -374,6 +390,8 @@ data:
                 code: vec![0x92, 0x81, 0x86, 0x83],
                 eeprom_start_address: 0x0,
                 eeprom: vec![],
+                device: Device::new(0),
+                ram_filling: 0,
             }
         );
     }
@@ -400,6 +418,8 @@ data:   .db 15, 26, \"Hello, World\", end
                 ],
                 eeprom_start_address: 0x0,
                 eeprom: vec![],
+                device: Device::new(0),
+                ram_filling: 0,
             }
         );
 
@@ -421,6 +441,8 @@ data_w:
                 code: vec![0x21, 0xe0, 0x44, 0xff, 0x0, 0x0, 0x4e, 0xda],
                 eeprom_start_address: 0x0,
                 eeprom: vec![],
+                device: Device::new(0),
+                ram_filling: 0,
             }
         );
 
@@ -441,6 +463,8 @@ data_d:
                 code: vec![0x21, 0xe0, 0x78, 0x56, 0x34, 0x12, 0xf0, 0xde, 0xbc, 0x9a],
                 eeprom_start_address: 0x0,
                 eeprom: vec![],
+                device: Device::new(0),
+                ram_filling: 0,
             }
         );
 
@@ -464,6 +488,8 @@ data_q:
                 ],
                 eeprom_start_address: 0x0,
                 eeprom: vec![],
+                device: Device::new(0),
+                ram_filling: 0,
             }
         );
     }
@@ -490,6 +516,8 @@ data_q:
                 code: vec![0x00, 0x00, 0x00, 0x00, 0x58, 0x94, 0x00, 0x00, 0x00, 0x00, 0xd8, 0x94],
                 eeprom_start_address: 0x0,
                 eeprom: vec![],
+                device: Device::new(0),
+                ram_filling: 0,
             }
         );
     }
@@ -515,6 +543,8 @@ data_w:
                 code: vec![0x20, 0xe0],
                 eeprom_start_address: 0x0,
                 eeprom: vec![0x44, 0xff, 0x0, 0x0, 0x4e, 0xda],
+                device: Device::new(0),
+                ram_filling: 0,
             }
         );
     }
@@ -543,6 +573,8 @@ counter:
                 code: vec![0x20, 0x91, 0x60, 0x0, 0x0, 0x91, 0x61, 0x0, 0x10, 0x91, 0x62, 0x0],
                 eeprom_start_address: 0x0,
                 eeprom: vec![],
+                device: Device::new(0),
+                ram_filling: 3,
             }
         );
     }
@@ -566,6 +598,8 @@ counter:
                 code: vec![0x1, 0x50, 0xf1, 0xf3, 0xff, 0xcf],
                 eeprom_start_address: 0x0,
                 eeprom: vec![],
+                device: Device::new(0),
+                ram_filling: 0,
             }
         );
     }
