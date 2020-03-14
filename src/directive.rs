@@ -367,6 +367,8 @@ impl Directive {
                     bail!("wrong format for .macro, expected: {} in {}", opts, point,);
                 }
             }
+            // Skip because we not need any actions for ATtiny and ATmega families
+            Directive::CSegSize => {}
             Directive::Custom(name) => bail!("unsupported custom directive {}, {}", name, point),
             _ => bail!(
                 "Unsupported directive {} in {} segment, {}",
@@ -1433,6 +1435,25 @@ mod parser_tests {
                     t: SegmentType::Code,
                     address: 0
                 }],
+                equs: HashMap::new(),
+                defines: hashmap! {},
+                macroses: hashmap! {},
+                device: Some(Device::new(0)),
+            }
+        );
+    }
+
+    #[test]
+    fn check_directive_cseg_size() {
+        let parse_result = parse_str(
+            "
+.csegsize 11
+        ",
+        );
+        assert_eq!(
+            parse_result.unwrap(),
+            ParseResult {
+                segments: vec![],
                 equs: HashMap::new(),
                 defines: hashmap! {},
                 macroses: hashmap! {},
