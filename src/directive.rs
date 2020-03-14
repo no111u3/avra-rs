@@ -63,13 +63,13 @@ pub enum Directive {
     ElIf,
     /// Conditional assembly - end conditional block
     Endif,
-    /// Outputs an error message (unsupported)
+    /// Outputs an error message
     Error,
     /// Conditional assembly - begin of conditional block
     If,
     IfDef,
     IfNDef,
-    /// Outputs a message string (unsupported)
+    /// Outputs a message string
     Message,
     /// Define constant double words in program memory and EEPROM
     Dd,
@@ -77,7 +77,7 @@ pub enum Directive {
     Dq,
     /// Undefine register symbol
     Undef,
-    /// Outputs a warning message (unsupported)
+    /// Outputs a warning message
     Warning,
     /// Set up/down overlapping section (unsupported)
     Overlap,
@@ -107,6 +107,7 @@ impl Directive {
             device,
             segments,
             macros,
+            messages,
         } = context;
 
         match self {
@@ -246,6 +247,7 @@ impl Directive {
                             device: device.clone(),
                             segments: segments.clone(),
                             macros: macros.clone(),
+                            messages: messages.clone(),
                         };
                         parse_file_internal(&context)?;
                     } else {
@@ -369,6 +371,39 @@ impl Directive {
             }
             // Skip because we not need any actions for ATtiny and ATmega families
             Directive::CSegSize => {}
+            Directive::Message | Directive::Warning | Directive::Error => {
+                if let DirectiveOps::OpList(values) = &opts {
+                    if let Operand::S(message) = &values[0] {
+                        let message_type = match self {
+                            Directive::Message => "info",
+                            Directive::Warning => "warning",
+                            Directive::Error => "error",
+                            _ => bail!("wrong option for message in {}", point),
+                        };
+                        context
+                            .messages
+                            .borrow_mut()
+                            .push(format!("{}: {} in {}", message_type, message, point));
+                        if self == &Directive::Error {
+                            bail!("failed by error: {} in {}", message, point);
+                        }
+                    } else {
+                        bail!(
+                            "wrong format for .{}, expected: {} in {}",
+                            self,
+                            opts,
+                            point,
+                        );
+                    }
+                } else {
+                    bail!(
+                        "wrong format for .{}, expected: {} in {}",
+                        self,
+                        opts,
+                        point,
+                    );
+                }
+            }
             Directive::Custom(name) => bail!("unsupported custom directive {}, {}", name, point),
             _ => bail!(
                 "Unsupported directive {} in {} segment, {}",
@@ -627,6 +662,7 @@ mod parser_tests {
                 defines: hashmap! {},
                 macroses: hashmap! {},
                 device: Some(Device::new(0)),
+                messages: vec![],
             }
         );
     }
@@ -665,6 +701,7 @@ mod parser_tests {
                 defines: hashmap! {},
                 macroses: hashmap! {},
                 device: Some(Device::new(0)),
+                messages: vec![],
             }
         );
 
@@ -700,6 +737,7 @@ mod parser_tests {
                 defines: hashmap! {},
                 macroses: hashmap! {},
                 device: Some(Device::new(0)),
+                messages: vec![],
             }
         );
 
@@ -746,6 +784,7 @@ mod parser_tests {
                 defines: hashmap! {},
                 macroses: hashmap! {},
                 device: Some(Device::new(0)),
+                messages: vec![],
             }
         );
     }
@@ -801,6 +840,7 @@ mod parser_tests {
                 defines: hashmap! {},
                 macroses: hashmap! {},
                 device: Some(Device::new(0)),
+                messages: vec![],
             }
         );
 
@@ -852,6 +892,7 @@ mod parser_tests {
                 defines: hashmap! {},
                 macroses: hashmap! {},
                 device: Some(Device::new(0)),
+                messages: vec![],
             }
         );
 
@@ -903,6 +944,7 @@ mod parser_tests {
                 defines: hashmap! {},
                 macroses: hashmap! {},
                 device: Some(Device::new(0)),
+                messages: vec![],
             }
         );
 
@@ -954,6 +996,7 @@ mod parser_tests {
                 defines: hashmap! {},
                 macroses: hashmap! {},
                 device: Some(Device::new(0)),
+                messages: vec![],
             }
         );
 
@@ -1005,6 +1048,7 @@ mod parser_tests {
                 defines: hashmap! {},
                 macroses: hashmap! {},
                 device: Some(Device::new(0)),
+                messages: vec![],
             }
         );
     }
@@ -1024,6 +1068,7 @@ mod parser_tests {
                 defines: hashmap! {},
                 macroses: hashmap! {},
                 device: Some(Device::new(0)),
+                messages: vec![],
             }
         );
     }
@@ -1065,6 +1110,7 @@ mod parser_tests {
                 defines: hashmap! {},
                 macroses: hashmap! {},
                 device: Some(Device::new(0)),
+                messages: vec![],
             }
         );
     }
@@ -1113,6 +1159,7 @@ mod parser_tests {
                 defines: hashmap! {},
                 macroses: hashmap! {},
                 device: Some(Device::new(0)),
+                messages: vec![],
             }
         );
     }
@@ -1147,6 +1194,7 @@ mod parser_tests {
                 defines: hashmap! {},
                 macroses: hashmap! {},
                 device: Some(DEVICES.get("ATmega48").unwrap().clone()),
+                messages: vec![],
             }
         );
 
@@ -1184,6 +1232,7 @@ mod parser_tests {
                 defines: hashmap! {},
                 macroses: hashmap! {},
                 device: Some(DEVICES.get("ATmega48").unwrap().clone()),
+                messages: vec![],
             }
         );
     }
@@ -1218,6 +1267,7 @@ mod parser_tests {
                 defines: hashmap! {},
                 macroses: hashmap! {},
                 device: Some(DEVICES.get("ATmega88").unwrap().clone()),
+                messages: vec![],
             }
         );
     }
@@ -1233,6 +1283,7 @@ mod parser_tests {
                 defines: hashmap! { "T".to_string() => Expr::Const(0) },
                 macroses: hashmap! {},
                 device: Some(Device::new(0)),
+                messages: vec![],
             }
         );
 
@@ -1245,6 +1296,7 @@ mod parser_tests {
                 defines: hashmap! {},
                 macroses: hashmap! {},
                 device: Some(Device::new(0)),
+                messages: vec![],
             }
         );
 
@@ -1257,6 +1309,7 @@ mod parser_tests {
                 defines: hashmap! {},
                 macroses: hashmap! {},
                 device: Some(Device::new(0)),
+                messages: vec![],
             }
         );
 
@@ -1269,6 +1322,7 @@ mod parser_tests {
                 defines: hashmap! { "T".to_string() => Expr::Const(0) },
                 macroses: hashmap! {},
                 device: Some(Device::new(0)),
+                messages: vec![],
             }
         );
 
@@ -1281,6 +1335,7 @@ mod parser_tests {
                 defines: hashmap! { "X".to_string() => Expr::Const(0)},
                 macroses: hashmap! {},
                 device: Some(Device::new(0)),
+                messages: vec![],
             }
         );
 
@@ -1293,6 +1348,7 @@ mod parser_tests {
                 defines: hashmap! { "Y".to_string() => Expr::Const(0), "Z".to_string() => Expr::Const(0) },
                 macroses: hashmap! {},
                 device: Some(Device::new(0)),
+                messages: vec![],
             }
         );
 
@@ -1305,6 +1361,7 @@ mod parser_tests {
                 defines: hashmap! { "X".to_string() => Expr::Const(0), "Z".to_string() => Expr::Const(0) },
                 macroses: hashmap! {},
                 device: Some(Device::new(0)),
+                messages: vec![],
             }
         );
 
@@ -1317,6 +1374,7 @@ mod parser_tests {
                 defines: hashmap! { "X".to_string() => Expr::Const(0), "Z".to_string() => Expr::Const(0) },
                 macroses: hashmap! {},
                 device: Some(Device::new(0)),
+                messages: vec![],
             }
         );
 
@@ -1329,6 +1387,7 @@ mod parser_tests {
                 defines: hashmap! { "Y".to_string() => Expr::Const(0), "Z".to_string() => Expr::Const(0) },
                 macroses: hashmap! {},
                 device: Some(Device::new(0)),
+                messages: vec![],
             }
         );
 
@@ -1351,6 +1410,7 @@ mod parser_tests {
                 defines: hashmap! { "Y".to_string() => Expr::Const(0), "Z".to_string() => Expr::Const(0) },
                 macroses: hashmap! {},
                 device: Some(Device::new(0)),
+                messages: vec![],
             }
         );
     }
@@ -1366,6 +1426,7 @@ mod parser_tests {
                 defines: hashmap! { "Y".to_string() => Expr::Const(0) },
                 macroses: hashmap! {},
                 device: Some(Device::new(0)),
+                messages: vec![],
             }
         );
     }
@@ -1405,6 +1466,7 @@ mod parser_tests {
                     "test2".to_string() => vec![]
                 },
                 device: Some(Device::new(0)),
+                messages: vec![],
             }
         );
     }
@@ -1439,6 +1501,7 @@ mod parser_tests {
                 defines: hashmap! {},
                 macroses: hashmap! {},
                 device: Some(Device::new(0)),
+                messages: vec![],
             }
         );
     }
@@ -1458,7 +1521,39 @@ mod parser_tests {
                 defines: hashmap! {},
                 macroses: hashmap! {},
                 device: Some(Device::new(0)),
+                messages: vec![],
             }
         );
+    }
+
+    #[test]
+    fn check_directive_message_warning_error() {
+        let parse_result = parse_str(
+            "
+.message \"test\"
+.warning \"test 2\"
+        ",
+        );
+        assert_eq!(
+            parse_result.unwrap(),
+            ParseResult {
+                segments: vec![],
+                equs: HashMap::new(),
+                defines: hashmap! {},
+                macroses: hashmap! {},
+                device: Some(Device::new(0)),
+                messages: vec![
+                    "info: test in line: 2".to_string(),
+                    "warning: test 2 in line: 3".to_string(),
+                ],
+            }
+        );
+
+        let parse_result = parse_str(
+            "
+.error \"Fail Fail Fail\"
+        ",
+        );
+        assert_eq!(parse_result.is_err(), true,);
     }
 }

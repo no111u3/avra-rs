@@ -101,6 +101,10 @@ fn main() {
             }
 
             if opt.verbosity {
+                for message in built.messages {
+                    println!("{}", message);
+                }
+
                 println!(
                     "Flash: {}({}) words(bytes) of {}({}), {:.2}%",
                     built.code.len() / 2,

@@ -80,6 +80,7 @@ pub struct BuildResultPass2 {
     pub eeprom: Vec<u8>,
     pub device: Device,
     pub ram_filling: u32,
+    pub messages: Vec<String>,
 }
 
 pub fn build_pass_2(pass1: BuildResultPass1) -> Result<BuildResultPass2, Error> {
@@ -141,6 +142,7 @@ pub fn build_pass_2(pass1: BuildResultPass1) -> Result<BuildResultPass2, Error> 
         eeprom,
         device: context.device,
         ram_filling: pass1.ram_filling,
+        messages: pass1.messages,
     })
 }
 
@@ -245,6 +247,7 @@ mod builder_tests {
                 eeprom: vec![],
                 device: Device::new(0),
                 ram_filling: 0,
+                messages: vec![],
             }
         );
     }
@@ -271,6 +274,7 @@ mod builder_tests {
                 eeprom: vec![],
                 device: Device::new(0),
                 ram_filling: 0,
+                messages: vec![],
             }
         );
     }
@@ -297,6 +301,7 @@ mod builder_tests {
                 eeprom: vec![],
                 device: Device::new(0),
                 ram_filling: 0,
+                messages: vec![],
             }
         );
 
@@ -321,6 +326,7 @@ exit:
                 eeprom: vec![],
                 device: Device::new(0),
                 ram_filling: 0,
+                messages: vec![],
             }
         );
     }
@@ -348,6 +354,7 @@ data:
                 eeprom: vec![],
                 device: Device::new(0),
                 ram_filling: 0,
+                messages: vec![],
             }
         );
 
@@ -371,6 +378,7 @@ data:
                 eeprom: vec![],
                 device: Device::new(0),
                 ram_filling: 0,
+                messages: vec![],
             }
         );
 
@@ -392,6 +400,7 @@ data:
                 eeprom: vec![],
                 device: Device::new(0),
                 ram_filling: 0,
+                messages: vec![],
             }
         );
     }
@@ -420,6 +429,7 @@ data:   .db 15, 26, \"Hello, World\", end
                 eeprom: vec![],
                 device: Device::new(0),
                 ram_filling: 0,
+                messages: vec![],
             }
         );
 
@@ -443,6 +453,7 @@ data_w:
                 eeprom: vec![],
                 device: Device::new(0),
                 ram_filling: 0,
+                messages: vec![],
             }
         );
 
@@ -465,6 +476,7 @@ data_d:
                 eeprom: vec![],
                 device: Device::new(0),
                 ram_filling: 0,
+                messages: vec![],
             }
         );
 
@@ -490,6 +502,7 @@ data_q:
                 eeprom: vec![],
                 device: Device::new(0),
                 ram_filling: 0,
+                messages: vec![],
             }
         );
     }
@@ -518,6 +531,7 @@ data_q:
                 eeprom: vec![],
                 device: Device::new(0),
                 ram_filling: 0,
+                messages: vec![],
             }
         );
     }
@@ -545,6 +559,7 @@ data_w:
                 eeprom: vec![0x44, 0xff, 0x0, 0x0, 0x4e, 0xda],
                 device: Device::new(0),
                 ram_filling: 0,
+                messages: vec![],
             }
         );
     }
@@ -575,6 +590,7 @@ counter:
                 eeprom: vec![],
                 device: Device::new(0),
                 ram_filling: 3,
+                messages: vec![],
             }
         );
     }
@@ -600,6 +616,7 @@ counter:
                 eeprom: vec![],
                 device: Device::new(0),
                 ram_filling: 0,
+                messages: vec![],
             }
         );
     }

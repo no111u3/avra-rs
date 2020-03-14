@@ -72,6 +72,7 @@ mod writer_tests {
             eeprom_size: 65536,
             ram_size: 0,
             ram_filling: 0,
+            messages: vec![],
         })
         .unwrap();
 
@@ -92,6 +93,7 @@ mod writer_tests {
             eeprom_size: 0,
             ram_size: 0,
             ram_filling: 0,
+            messages: vec![],
         };
 
         let result = generate_hex(&build_result).unwrap();

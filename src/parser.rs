@@ -97,6 +97,8 @@ pub struct ParseResult {
     pub macroses: HashMap<String, Vec<(CodePoint, String)>>,
     // device
     pub device: Option<Device>,
+    // messages
+    pub messages: Vec<String>,
 }
 
 impl ParseResult {
@@ -107,6 +109,7 @@ impl ParseResult {
             defines: HashMap::new(),
             macroses: hashmap! {},
             device: Some(Device::new(0)),
+            messages: vec![],
         }
     }
 }
@@ -140,6 +143,8 @@ pub struct ParseContext {
     pub segments: Rc<RefCell<Vec<Rc<RefCell<Segment>>>>>,
     // macro
     pub macros: Rc<Macro>,
+    // messages
+    pub messages: Rc<RefCell<Vec<String>>>,
 }
 
 impl ParseContext {
@@ -157,6 +162,7 @@ impl ParseContext {
                 name: RefCell::new(String::new()),
                 macroses: RefCell::new(hashmap! {}),
             }),
+            messages: Rc::new(RefCell::new(vec![])),
         }
     }
 
@@ -190,6 +196,7 @@ impl ParseContext {
         let defines = self.defines.borrow().clone();
         let macroses = self.macros.macroses.borrow().clone();
         let device = self.device.borrow().clone();
+        let messages = self.messages.borrow().clone();
 
         ParseResult {
             segments,
@@ -197,6 +204,7 @@ impl ParseContext {
             defines,
             macroses,
             device,
+            messages,
         }
     }
 }
@@ -247,6 +255,7 @@ pub fn parse_file_internal(context: &ParseContext) -> Result<(), Error> {
         device,
         segments,
         macros,
+        messages,
     } = context.clone();
     let include_paths = include_paths.borrow_mut();
 
@@ -299,6 +308,7 @@ pub fn parse_file_internal(context: &ParseContext) -> Result<(), Error> {
         device,
         segments,
         macros,
+        messages,
     };
 
     parse(source.as_str(), &context)?;
@@ -505,6 +515,7 @@ mod parser_tests {
                 defines: hashmap! {},
                 macroses: hashmap! {},
                 device: Some(Device::new(0)),
+                messages: vec![],
             }
         );
 
@@ -536,6 +547,7 @@ mod parser_tests {
                 defines: hashmap! {},
                 macroses: hashmap! {},
                 device: Some(Device::new(0)),
+                messages: vec![],
             }
         );
 
@@ -558,6 +570,7 @@ mod parser_tests {
                 defines: hashmap! {},
                 macroses: hashmap! {},
                 device: Some(Device::new(0)),
+                messages: vec![],
             }
         );
 
@@ -618,6 +631,7 @@ mod parser_tests {
                 defines: hashmap! {},
                 macroses: hashmap! {},
                 device: Some(Device::new(0)),
+                messages: vec![],
             }
         );
 
@@ -663,6 +677,7 @@ mod parser_tests {
                 defines: hashmap! {},
                 macroses: hashmap! {},
                 device: Some(Device::new(0)),
+                messages: vec![],
             }
         );
 
@@ -708,6 +723,7 @@ mod parser_tests {
                 defines: hashmap! {},
                 macroses: hashmap! {},
                 device: Some(Device::new(0)),
+                messages: vec![],
             }
         );
     }
@@ -756,6 +772,7 @@ mod parser_tests {
                 defines: hashmap! {},
                 macroses: hashmap! {},
                 device: Some(Device::new(0)),
+                messages: vec![],
             }
         );
 
@@ -800,6 +817,7 @@ mod parser_tests {
                 defines: hashmap! {},
                 macroses: hashmap! {},
                 device: Some(Device::new(0)),
+                messages: vec![],
             }
         );
     }
@@ -885,6 +903,7 @@ mod parser_tests {
                 defines: hashmap! {},
                 macroses: hashmap! {},
                 device: Some(Device::new(0)),
+                messages: vec![],
             }
         );
 
@@ -954,6 +973,7 @@ mod parser_tests {
                 defines: hashmap! {},
                 macroses: hashmap! {},
                 device: Some(Device::new(0)),
+                messages: vec![],
             }
         );
 
@@ -1003,6 +1023,7 @@ mod parser_tests {
                 defines: hashmap! {},
                 macroses: hashmap! {},
                 device: Some(Device::new(0)),
+                messages: vec![],
             }
         );
     }

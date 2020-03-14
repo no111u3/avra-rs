@@ -24,6 +24,8 @@ pub struct BuildResultPass0 {
     pub equs: HashMap<String, Expr>,
     // device
     pub device: Option<Device>,
+    // messages
+    pub messages: Vec<String>,
 }
 
 impl BuildResultPass0 {
@@ -32,6 +34,7 @@ impl BuildResultPass0 {
             segments: vec![],
             equs: HashMap::new(),
             device: Some(Device::new(0)),
+            messages: vec![],
         }
     }
 }
@@ -50,6 +53,8 @@ pub struct Pass0Context {
     pub segments: Rc<RefCell<Vec<Rc<RefCell<Segment>>>>>,
     // macro
     pub macros: Rc<Macro>,
+    // messages
+    pub messages: Rc<RefCell<Vec<String>>>,
 }
 
 impl Pass0Context {
@@ -81,11 +86,13 @@ impl Pass0Context {
             .collect();
         let equs = self.equs.borrow().clone();
         let device = self.device.borrow().clone();
+        let messages = self.messages.borrow().clone();
 
         BuildResultPass0 {
             segments,
             equs,
             device,
+            messages,
         }
     }
 }
@@ -99,6 +106,7 @@ pub fn build_pass_0(parsed: ParseResult) -> Result<BuildResultPass0, Error> {
         device: Rc::new(RefCell::new(parsed.device)),
         segments: Rc::new(RefCell::new(vec![])),
         macros: Rc::new(Macro::new()),
+        messages: Rc::new(RefCell::new(parsed.messages)),
     };
 
     for segment in parsed.segments {
@@ -205,6 +213,7 @@ fn macro_expand(
             device: context.device.clone(),
             segments: segments.clone(),
             macros: context.macros.clone(),
+            messages: context.messages.clone(),
         };
         parse_iter(&mut iter, &parse_context)?;
     } else {
@@ -239,6 +248,7 @@ mod builder_tests {
                 segments: vec![],
                 equs: hashmap! {},
                 device: Some(Device::new(0)),
+                messages: vec![],
             }
         );
 
@@ -316,6 +326,7 @@ mod builder_tests {
                 }],
                 equs: hashmap! {},
                 device: Some(Device::new(0)),
+                messages: vec![],
             }
         );
     }
@@ -396,6 +407,7 @@ mod builder_tests {
                 }],
                 equs: hashmap! {},
                 device: Some(Device::new(0)),
+                messages: vec![],
             }
         );
     }
@@ -479,6 +491,7 @@ mod builder_tests {
                 }],
                 equs: hashmap! {},
                 device: Some(Device::new(0)),
+                messages: vec![],
             }
         );
     }

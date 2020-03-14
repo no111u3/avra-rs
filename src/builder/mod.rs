@@ -21,6 +21,8 @@ pub struct BuildResult {
     pub eeprom_size: u32,
     pub ram_size: u32,
     pub ram_filling: u32,
+
+    pub messages: Vec<String>,
 }
 
 fn build_from_parsed(parsed: ParseResult) -> Result<BuildResult, Error> {
@@ -58,6 +60,7 @@ fn build_from_parsed(parsed: ParseResult) -> Result<BuildResult, Error> {
         eeprom_size: passed_2.device.eeprom_size,
         ram_size: passed_2.device.ram_size,
         ram_filling: passed_2.ram_filling,
+        messages: passed_2.messages,
     })
 }
 
@@ -93,6 +96,7 @@ mod builder_tests {
                 eeprom_size: 65536,
                 ram_size: 8388608,
                 ram_filling: 0,
+                messages: vec![],
             }
         );
     }
@@ -137,6 +141,7 @@ m1:
             eeprom_size: 65536,
             ram_size: 8388608,
             ram_filling: 0,
+            messages: vec![],
         };
 
         assert_eq!(built, build_success_result);
@@ -148,6 +153,10 @@ m1:
             eeprom_size: 256,
             ram_size: 512,
             ram_filling: 0,
+            messages: vec![
+                "info: This simple test displays basic assembler constructions. in line: 1"
+                    .to_string(),
+            ],
         };
 
         let built = build_file(

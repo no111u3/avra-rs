@@ -1,3 +1,4 @@
+.message "This simple test displays basic assembler constructions."
 .include "m48def.inc" ; - include device specific include file
 .if 0
         bla bla bla

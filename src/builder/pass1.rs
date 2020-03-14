@@ -22,6 +22,8 @@ pub struct BuildResultPass1 {
     pub device: Device,
     //
     pub ram_filling: u32,
+    // messages
+    pub messages: Vec<String>,
 }
 
 pub fn build_pass_1(parsed: BuildResultPass0) -> Result<BuildResultPass1, Error> {
@@ -67,6 +69,7 @@ pub fn build_pass_1(parsed: BuildResultPass0) -> Result<BuildResultPass1, Error>
         labels,
         device,
         ram_filling,
+        messages: parsed.messages,
     })
 }
 
@@ -182,6 +185,7 @@ mod builder_tests {
                 labels: HashMap::new(),
                 device: Device::new(0),
                 ram_filling: 0,
+                messages: vec![],
             }
         );
     }
@@ -202,6 +206,7 @@ mod builder_tests {
             }],
             equs: HashMap::new(),
             device: Some(Device::new(0)),
+            messages: vec![],
         });
 
         assert_eq!(
@@ -216,6 +221,7 @@ mod builder_tests {
                 labels: hashmap! {"good_point".to_string() => (SegmentType::Code, 0)},
                 device: Device::new(0),
                 ram_filling: 0,
+                messages: vec![],
             }
         );
     }
@@ -249,6 +255,7 @@ mod builder_tests {
             ],
             equs: HashMap::new(),
             device: Some(Device::new(0)),
+            messages: vec![],
         });
 
         assert_eq!(
@@ -274,6 +281,7 @@ mod builder_tests {
                 },
                 device: Device::new(0),
                 ram_filling: 0,
+                messages: vec![],
             }
         );
 
@@ -305,6 +313,7 @@ mod builder_tests {
                 },
                 device: Device::new(0),
                 ram_filling: 0,
+                messages: vec![],
             }
         );
 
@@ -342,6 +351,7 @@ mod builder_tests {
                 },
                 device: Device::new(0),
                 ram_filling: 0,
+                messages: vec![],
             }
         );
     }
@@ -446,6 +456,7 @@ m1:
                 },
                 device: Device::new(0),
                 ram_filling: 0,
+                messages: vec![],
             }
         );
 
@@ -592,6 +603,7 @@ data_q: .dq 0x1, 0x1000000000011000
                 },
                 device: Device::new(0),
                 ram_filling: 0,
+                messages: vec![],
             }
         );
 
@@ -616,6 +628,7 @@ data_q: .dq 0x1, 0x1000000000011000
                 },
                 device: Device::new(0),
                 ram_filling: 3,
+                messages: vec![],
             }
         );
     }
