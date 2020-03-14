@@ -1,7 +1,7 @@
 //! Contains second pass builder of AVRA-rs
 
 use crate::builder::pass1::BuildResultPass1;
-use crate::context::Context;
+use crate::context::{CommonContext, Context};
 use crate::device::Device;
 use crate::directive::GetData;
 use crate::expr::Expr;
@@ -18,58 +18,12 @@ use std::cell::RefCell;
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 struct Pass2Context {
-    // equals
-    equs: HashMap<String, Expr>,
-    // labels
-    labels: HashMap<String, (SegmentType, u32)>,
-    // defs
-    defs: RefCell<HashMap<String, Reg8>>,
-    // sets
-    sets: RefCell<HashMap<String, Expr>>,
+    // common context
+    common_context: CommonContext,
     // special
     special: RefCell<HashMap<String, Expr>>,
     // device
     device: Device,
-}
-
-impl Context for Pass2Context {
-    fn get_equ(&self, name: &String) -> Option<Expr> {
-        self.equs.get(&name.to_lowercase()).map(|x| x.clone())
-    }
-
-    fn get_label(&self, name: &String) -> Option<(SegmentType, u32)> {
-        self.labels.get(&name.to_lowercase()).map(|x| x.clone())
-    }
-
-    fn get_def(&self, name: &String) -> Option<Reg8> {
-        self.defs
-            .borrow()
-            .get(&name.to_lowercase())
-            .map(|x| x.clone())
-    }
-
-    fn get_set(&self, name: &String) -> Option<Expr> {
-        self.sets.borrow().get(name).map(|x| x.clone())
-    }
-
-    fn get_special(&self, name: &String) -> Option<Expr> {
-        self.special
-            .borrow()
-            .get(&name.to_lowercase())
-            .map(|x| x.clone())
-    }
-
-    fn set_def(&self, name: String, value: Reg8) -> Option<Reg8> {
-        if self.exist(&name) {
-            None
-        } else {
-            self.defs.borrow_mut().insert(name.to_lowercase(), value)
-        }
-    }
-
-    fn set_special(&self, name: String, value: Expr) -> Option<Expr> {
-        self.special.borrow_mut().insert(name, value)
-    }
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -83,17 +37,17 @@ pub struct BuildResultPass2 {
     pub messages: Vec<String>,
 }
 
-pub fn build_pass_2(pass1: BuildResultPass1) -> Result<BuildResultPass2, Error> {
+pub fn build_pass_2(
+    pass1: BuildResultPass1,
+    common_context: &CommonContext,
+) -> Result<BuildResultPass2, Error> {
     let mut code = vec![];
     let code_start_address = 0x0;
     let mut eeprom = vec![];
     let eeprom_start_address = 0x0;
 
     let context = Pass2Context {
-        equs: pass1.equs,
-        labels: pass1.labels,
-        defs: RefCell::new(hashmap! {}),
-        sets: RefCell::new(hashmap! {}),
+        common_context: common_context.clone(),
         special: RefCell::new(hashmap! {}),
         device: pass1.device,
     };
@@ -152,14 +106,17 @@ fn pass_2_internal(segment: &Segment, context: &Pass2Context) -> Result<Vec<u8>,
     let mut cur_address = segment.address;
 
     for (line, item) in segment.items.iter() {
-        context.set_special("pc".to_string(), Expr::Const(cur_address as i64));
+        context
+            .common_context
+            .set_special("pc".to_string(), Expr::Const(cur_address as i64));
         match item {
             Item::Instruction(op, op_args) => {
                 if context.device.check_operation(op) {
-                    let complete_op = match process(&op, &op_args, cur_address, context) {
-                        Ok(ok) => ok,
-                        Err(e) => bail!("{}, {}", e, line),
-                    };
+                    let complete_op =
+                        match process(&op, &op_args, cur_address, &context.common_context) {
+                            Ok(ok) => ok,
+                            Err(e) => bail!("{}, {}", e, line),
+                        };
                     cur_address += complete_op.len() as u32 / 2;
                     code_fragment.extend(complete_op);
                 } else {
@@ -172,10 +129,10 @@ fn pass_2_internal(segment: &Segment, context: &Pass2Context) -> Result<Vec<u8>,
             }
             Item::Data(item_type, items) => {
                 let data = match item_type {
-                    DataDefine::Db => items.get_bytes(context),
-                    DataDefine::Dw => items.get_words(context),
-                    DataDefine::Dd => items.get_double_words(context),
-                    DataDefine::Dq => items.get_quad_words(context),
+                    DataDefine::Db => items.get_bytes(&context.common_context),
+                    DataDefine::Dw => items.get_words(&context.common_context),
+                    DataDefine::Dd => items.get_double_words(&context.common_context),
+                    DataDefine::Dq => items.get_quad_words(&context.common_context),
                 }?;
                 cur_address += if let SegmentType::Code = segment.t {
                     data.len() as u32 / 2
@@ -191,7 +148,7 @@ fn pass_2_internal(segment: &Segment, context: &Pass2Context) -> Result<Vec<u8>,
                 }
             }
             Item::Def(alias, Expr::Ident(register)) => {
-                if let Some(_) = context.set_def(
+                if let Some(_) = context.common_context.set_def(
                     alias.to_lowercase(),
                     Reg8::from_str(register.to_lowercase().as_str()).unwrap(),
                 ) {
@@ -200,14 +157,14 @@ fn pass_2_internal(segment: &Segment, context: &Pass2Context) -> Result<Vec<u8>,
                 }
             }
             Item::Undef(alias) => {
-                if let None = context.defs.borrow_mut().remove(alias) {
+                if let None = context.common_context.defs.borrow_mut().remove(alias) {
                     bail!("Identifier {} isn't defined, {}", alias, line);
                 }
             }
             Item::Set(name, expr) => {
-                let value = expr.run(context)?;
-                if context.exist(name) {
-                    let mut sets = context.sets.borrow_mut();
+                let value = expr.run(&context.common_context)?;
+                if context.common_context.exist(name) {
+                    let mut sets = context.common_context.sets.borrow_mut();
                     if let Some(_) = sets.get(name) {
                         sets.insert(name.clone(), Expr::Const(value));
                     } else {
@@ -216,6 +173,7 @@ fn pass_2_internal(segment: &Segment, context: &Pass2Context) -> Result<Vec<u8>,
                     }
                 } else {
                     context
+                        .common_context
                         .sets
                         .borrow_mut()
                         .insert(name.clone(), Expr::Const(value));
@@ -237,7 +195,11 @@ mod builder_tests {
 
     #[test]
     fn check_empty() {
-        let build_result = build_pass_2(build_pass_1(BuildResultPass0::new()).unwrap());
+        let common_context = CommonContext::new();
+        let build_result = build_pass_2(
+            build_pass_1(BuildResultPass0::new(), &common_context).unwrap(),
+            &common_context,
+        );
         assert_eq!(
             build_result.unwrap(),
             BuildResultPass2 {
@@ -254,6 +216,7 @@ mod builder_tests {
 
     #[test]
     fn check_no_args() {
+        let common_context = CommonContext::new();
         let parse_result = parse_str(
             "
         nop
@@ -261,10 +224,14 @@ mod builder_tests {
         seh
         clh
         ",
+            &common_context,
         );
-        let post_parse_result = build_pass_0(parse_result.unwrap());
+        let post_parse_result = build_pass_0(parse_result.unwrap(), &common_context);
 
-        let build_result = build_pass_2(build_pass_1(post_parse_result.unwrap()).unwrap());
+        let build_result = build_pass_2(
+            build_pass_1(post_parse_result.unwrap(), &common_context).unwrap(),
+            &common_context,
+        );
         assert_eq!(
             build_result.unwrap(),
             BuildResultPass2 {
@@ -281,6 +248,7 @@ mod builder_tests {
 
     #[test]
     fn check_one_arg() {
+        let common_context = CommonContext::new();
         let parse_result = parse_str(
             "
         push r0
@@ -288,10 +256,14 @@ mod builder_tests {
         swap r0
         pop r1
         ",
+            &common_context,
         );
-        let post_parse_result = build_pass_0(parse_result.unwrap());
+        let post_parse_result = build_pass_0(parse_result.unwrap(), &common_context);
 
-        let build_result = build_pass_2(build_pass_1(post_parse_result.unwrap()).unwrap());
+        let build_result = build_pass_2(
+            build_pass_1(post_parse_result.unwrap(), &common_context).unwrap(),
+            &common_context,
+        );
         assert_eq!(
             build_result.unwrap(),
             BuildResultPass2 {
@@ -305,6 +277,7 @@ mod builder_tests {
             }
         );
 
+        let common_context = CommonContext::new();
         let parse_result = parse_str(
             "
         tst r1
@@ -313,10 +286,14 @@ error:
 exit:
         rjmp error
         ",
+            &common_context,
         );
-        let post_parse_result = build_pass_0(parse_result.unwrap());
+        let post_parse_result = build_pass_0(parse_result.unwrap(), &common_context);
 
-        let build_result = build_pass_2(build_pass_1(post_parse_result.unwrap()).unwrap());
+        let build_result = build_pass_2(
+            build_pass_1(post_parse_result.unwrap(), &common_context).unwrap(),
+            &common_context,
+        );
         assert_eq!(
             build_result.unwrap(),
             BuildResultPass2 {
@@ -333,6 +310,7 @@ exit:
 
     #[test]
     fn check_two_args() {
+        let common_context = CommonContext::new();
         let parse_result = parse_str(
             "
         ldi r16, 1 << 2 | 1 << 1
@@ -341,10 +319,14 @@ exit:
         sts data, r16
 data:
         ",
+            &common_context,
         );
-        let post_parse_result = build_pass_0(parse_result.unwrap());
+        let post_parse_result = build_pass_0(parse_result.unwrap(), &common_context);
 
-        let build_result = build_pass_2(build_pass_1(post_parse_result.unwrap()).unwrap());
+        let build_result = build_pass_2(
+            build_pass_1(post_parse_result.unwrap(), &common_context).unwrap(),
+            &common_context,
+        );
         assert_eq!(
             build_result.unwrap(),
             BuildResultPass2 {
@@ -358,6 +340,7 @@ data:
             }
         );
 
+        let common_context = CommonContext::new();
         let parse_result = parse_str(
             "
         ld r17, X
@@ -365,10 +348,14 @@ data:
         ld r19, -Z
         st X+, r19
         ",
+            &common_context,
         );
-        let post_parse_result = build_pass_0(parse_result.unwrap());
+        let post_parse_result = build_pass_0(parse_result.unwrap(), &common_context);
 
-        let build_result = build_pass_2(build_pass_1(post_parse_result.unwrap()).unwrap());
+        let build_result = build_pass_2(
+            build_pass_1(post_parse_result.unwrap(), &common_context).unwrap(),
+            &common_context,
+        );
         assert_eq!(
             build_result.unwrap(),
             BuildResultPass2 {
@@ -382,15 +369,20 @@ data:
             }
         );
 
+        let common_context = CommonContext::new();
         let parse_result = parse_str(
             "
         ldd r25, Z+2
         std Z+6, r24
         ",
+            &common_context,
         );
-        let post_parse_result = build_pass_0(parse_result.unwrap());
+        let post_parse_result = build_pass_0(parse_result.unwrap(), &common_context);
 
-        let build_result = build_pass_2(build_pass_1(post_parse_result.unwrap()).unwrap());
+        let build_result = build_pass_2(
+            build_pass_1(post_parse_result.unwrap(), &common_context).unwrap(),
+            &common_context,
+        );
         assert_eq!(
             build_result.unwrap(),
             BuildResultPass2 {
@@ -407,16 +399,21 @@ data:
 
     #[test]
     fn check_db_dw_dd_dq() {
+        let common_context = CommonContext::new();
         let parse_result = parse_str(
             "
         .equ end = 0
         ldi r16, data
 data:   .db 15, 26, \"Hello, World\", end  
         ",
+            &common_context,
         );
-        let post_parse_result = build_pass_0(parse_result.unwrap());
+        let post_parse_result = build_pass_0(parse_result.unwrap(), &common_context);
 
-        let build_result = build_pass_2(build_pass_1(post_parse_result.unwrap()).unwrap());
+        let build_result = build_pass_2(
+            build_pass_1(post_parse_result.unwrap(), &common_context).unwrap(),
+            &common_context,
+        );
         assert_eq!(
             build_result.unwrap(),
             BuildResultPass2 {
@@ -433,6 +430,7 @@ data:   .db 15, 26, \"Hello, World\", end
             }
         );
 
+        let common_context = CommonContext::new();
         let parse_result = parse_str(
             "
         .equ end = 0
@@ -440,10 +438,14 @@ data:   .db 15, 26, \"Hello, World\", end
 data_w:
         .dw 0xff44, end, 0xda4e
         ",
+            &common_context,
         );
-        let post_parse_result = build_pass_0(parse_result.unwrap());
+        let post_parse_result = build_pass_0(parse_result.unwrap(), &common_context);
 
-        let build_result = build_pass_2(build_pass_1(post_parse_result.unwrap()).unwrap());
+        let build_result = build_pass_2(
+            build_pass_1(post_parse_result.unwrap(), &common_context).unwrap(),
+            &common_context,
+        );
         assert_eq!(
             build_result.unwrap(),
             BuildResultPass2 {
@@ -457,16 +459,21 @@ data_w:
             }
         );
 
+        let common_context = CommonContext::new();
         let parse_result = parse_str(
             "
         ldi r18, data_d
 data_d:
         .dd 0x12345678, 0x9abcdef0
         ",
+            &common_context,
         );
-        let post_parse_result = build_pass_0(parse_result.unwrap());
+        let post_parse_result = build_pass_0(parse_result.unwrap(), &common_context);
 
-        let build_result = build_pass_2(build_pass_1(post_parse_result.unwrap()).unwrap());
+        let build_result = build_pass_2(
+            build_pass_1(post_parse_result.unwrap(), &common_context).unwrap(),
+            &common_context,
+        );
         assert_eq!(
             build_result.unwrap(),
             BuildResultPass2 {
@@ -480,16 +487,21 @@ data_d:
             }
         );
 
+        let common_context = CommonContext::new();
         let parse_result = parse_str(
             "
         ldi r18, data_q
 data_q:
         .dq 0x1, 0x1000000000011000
         ",
+            &common_context,
         );
-        let post_parse_result = build_pass_0(parse_result.unwrap());
+        let post_parse_result = build_pass_0(parse_result.unwrap(), &common_context);
 
-        let build_result = build_pass_2(build_pass_1(post_parse_result.unwrap()).unwrap());
+        let build_result = build_pass_2(
+            build_pass_1(post_parse_result.unwrap(), &common_context).unwrap(),
+            &common_context,
+        );
         assert_eq!(
             build_result.unwrap(),
             BuildResultPass2 {
@@ -509,6 +521,7 @@ data_q:
 
     #[test]
     fn check_cseg_org() {
+        let common_context = CommonContext::new();
         let parse_result = parse_str(
             "
         nop
@@ -518,10 +531,14 @@ data_q:
         .org 0x5
         clh
         ",
+            &common_context,
         );
-        let post_parse_result = build_pass_0(parse_result.unwrap());
+        let post_parse_result = build_pass_0(parse_result.unwrap(), &common_context);
 
-        let build_result = build_pass_2(build_pass_1(post_parse_result.unwrap()).unwrap());
+        let build_result = build_pass_2(
+            build_pass_1(post_parse_result.unwrap(), &common_context).unwrap(),
+            &common_context,
+        );
         assert_eq!(
             build_result.unwrap(),
             BuildResultPass2 {
@@ -538,6 +555,7 @@ data_q:
 
     #[test]
     fn check_eseg() {
+        let common_context = CommonContext::new();
         let parse_result = parse_str(
             "
         .equ end = 0
@@ -546,10 +564,14 @@ data_q:
 data_w:
         .dw 0xff44, end, 0xda4e
         ",
+            &common_context,
         );
-        let post_parse_result = build_pass_0(parse_result.unwrap());
+        let post_parse_result = build_pass_0(parse_result.unwrap(), &common_context);
 
-        let build_result = build_pass_2(build_pass_1(post_parse_result.unwrap()).unwrap());
+        let build_result = build_pass_2(
+            build_pass_1(post_parse_result.unwrap(), &common_context).unwrap(),
+            &common_context,
+        );
         assert_eq!(
             build_result.unwrap(),
             BuildResultPass2 {
@@ -566,6 +588,7 @@ data_w:
 
     #[test]
     fn check_dseg() {
+        let common_context = CommonContext::new();
         let parse_result = parse_str(
             "
 .dseg
@@ -577,10 +600,14 @@ counter:
         lds r16, counter
         lds r17, counter+1
         ",
+            &common_context,
         );
-        let post_parse_result = build_pass_0(parse_result.unwrap());
+        let post_parse_result = build_pass_0(parse_result.unwrap(), &common_context);
 
-        let build_result = build_pass_2(build_pass_1(post_parse_result.unwrap()).unwrap());
+        let build_result = build_pass_2(
+            build_pass_1(post_parse_result.unwrap(), &common_context).unwrap(),
+            &common_context,
+        );
         assert_eq!(
             build_result.unwrap(),
             BuildResultPass2 {
@@ -597,16 +624,21 @@ counter:
 
     #[test]
     fn relatives_branch() {
+        let common_context = CommonContext::new();
         let parse_result = parse_str(
             "
         subi r16, 1
         breq pc-1
         rjmp pc
         ",
+            &common_context,
         );
-        let post_parse_result = build_pass_0(parse_result.unwrap());
+        let post_parse_result = build_pass_0(parse_result.unwrap(), &common_context);
 
-        let build_result = build_pass_2(build_pass_1(post_parse_result.unwrap()).unwrap());
+        let build_result = build_pass_2(
+            build_pass_1(post_parse_result.unwrap(), &common_context).unwrap(),
+            &common_context,
+        );
         assert_eq!(
             build_result.unwrap(),
             BuildResultPass2 {

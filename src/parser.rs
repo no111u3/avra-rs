@@ -9,7 +9,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::{env, fmt};
 
-use crate::context::Context;
+use crate::context::CommonContext;
 use crate::device::Device;
 use crate::directive::{Directive, Operand};
 use crate::document::{document, Document};
@@ -89,10 +89,6 @@ impl Segment {
 pub struct ParseResult {
     // collect of segments
     pub segments: Vec<Segment>,
-    // equals
-    pub equs: HashMap<String, Expr>,
-    // defines
-    pub defines: HashMap<String, Expr>,
     // macroses
     pub macroses: HashMap<String, Vec<(CodePoint, String)>>,
     // device
@@ -105,8 +101,6 @@ impl ParseResult {
     pub fn new() -> Self {
         Self {
             segments: vec![],
-            equs: HashMap::new(),
-            defines: HashMap::new(),
             macroses: hashmap! {},
             device: Some(Device::new(0)),
             messages: vec![],
@@ -133,10 +127,8 @@ impl Macro {
 pub struct ParseContext {
     pub current_path: PathBuf,
     pub include_paths: RefCell<Paths>,
-    // equals
-    pub equs: Rc<RefCell<HashMap<String, Expr>>>,
-    // defines
-    pub defines: Rc<RefCell<HashMap<String, Expr>>>,
+    // common part
+    pub common_context: CommonContext,
     // device
     pub device: Rc<RefCell<Option<Device>>>,
     // segments
@@ -148,12 +140,15 @@ pub struct ParseContext {
 }
 
 impl ParseContext {
-    pub fn new(current_path: PathBuf, include_paths: RefCell<Paths>) -> Self {
+    pub fn new(
+        current_path: PathBuf,
+        include_paths: RefCell<Paths>,
+        common_context: CommonContext,
+    ) -> Self {
         Self {
             current_path,
             include_paths,
-            defines: Rc::new(RefCell::new(hashmap! {})),
-            equs: Rc::new(RefCell::new(hashmap! {})),
+            common_context,
             device: Rc::new(RefCell::new(Some(Device::new(0)))),
             segments: Rc::new(RefCell::new(vec![Rc::new(RefCell::new(Segment::new(
                 SegmentType::Code,
@@ -192,16 +187,12 @@ impl ParseContext {
             .filter(|x| !x.borrow().is_empty())
             .map(|x| x.borrow().clone())
             .collect();
-        let equs = self.equs.borrow().clone();
-        let defines = self.defines.borrow().clone();
         let macroses = self.macros.macroses.borrow().clone();
         let device = self.device.borrow().clone();
         let messages = self.messages.borrow().clone();
 
         ParseResult {
             segments,
-            equs,
-            defines,
             macroses,
             device,
             messages,
@@ -209,37 +200,24 @@ impl ParseContext {
     }
 }
 
-impl Context for ParseContext {
-    fn get_define(&self, name: &String) -> Option<Expr> {
-        self.defines.borrow().get(name).map(|x| x.clone())
-    }
-
-    fn get_equ(&self, name: &String) -> Option<Expr> {
-        self.equs
-            .borrow()
-            .get(&name.to_lowercase())
-            .map(|x| x.clone())
-    }
-
-    fn set_define(&self, name: String, expr: Expr) -> Option<Expr> {
-        self.defines.borrow_mut().insert(name, expr)
-    }
-
-    fn set_equ(&self, name: String, expr: Expr) -> Option<Expr> {
-        self.equs.borrow_mut().insert(name.to_lowercase(), expr)
-    }
-}
-
-pub fn parse_str(input: &str) -> Result<ParseResult, Error> {
-    let context = ParseContext::new(env::current_dir()?, RefCell::new(btreeset! {}));
+pub fn parse_str(input: &str, common_context: &CommonContext) -> Result<ParseResult, Error> {
+    let context = ParseContext::new(
+        env::current_dir()?,
+        RefCell::new(btreeset! {}),
+        common_context.clone(),
+    );
 
     parse(input, &context)?;
 
     Ok(context.as_parse_result())
 }
 
-pub fn parse_file(path: PathBuf, paths: Paths) -> Result<ParseResult, Error> {
-    let context = ParseContext::new(path, RefCell::new(paths));
+pub fn parse_file(
+    path: PathBuf,
+    paths: Paths,
+    common_context: &CommonContext,
+) -> Result<ParseResult, Error> {
+    let context = ParseContext::new(path, RefCell::new(paths), common_context.clone());
 
     parse_file_internal(&context)?;
 
@@ -250,8 +228,7 @@ pub fn parse_file_internal(context: &ParseContext) -> Result<(), Error> {
     let ParseContext {
         current_path,
         include_paths,
-        defines,
-        equs,
+        common_context,
         device,
         segments,
         macros,
@@ -303,8 +280,7 @@ pub fn parse_file_internal(context: &ParseContext) -> Result<(), Error> {
     let context = ParseContext {
         current_path,
         include_paths,
-        defines,
-        equs,
+        common_context,
         device,
         segments,
         macros,
@@ -469,34 +445,34 @@ mod parser_tests {
 
     #[test]
     fn check_empty() {
-        let parse_result = parse_str("");
+        let parse_result = parse_str("", &CommonContext::new());
 
         assert_eq!(parse_result.is_ok(), true);
         assert_eq!(parse_result.unwrap(), ParseResult::new());
 
-        let parse_result = parse_str("\t\r\n\t     \t\r\n\n");
+        let parse_result = parse_str("\t\r\n\t     \t\r\n\n", &CommonContext::new());
         assert_eq!(parse_result.is_ok(), true);
         assert_eq!(parse_result.unwrap(), ParseResult::new());
     }
 
     #[test]
     fn check_wrong() {
-        let parse_result = parse_str("bla bla bla bla");
+        let parse_result = parse_str("bla bla bla bla", &CommonContext::new());
         assert_eq!(parse_result.is_err(), true);
     }
 
     #[test]
     fn check_comment() {
-        let parse_result = parse_str(";bla bla bla bla");
+        let parse_result = parse_str(";bla bla bla bla", &CommonContext::new());
         assert_eq!(parse_result.unwrap(), ParseResult::new());
 
-        let parse_result = parse_str(";;bla bla bla bla");
+        let parse_result = parse_str(";;bla bla bla bla", &CommonContext::new());
         assert_eq!(parse_result.unwrap(), ParseResult::new());
     }
 
     #[test]
     fn check_label() {
-        let parse_result = parse_str("good_point:");
+        let parse_result = parse_str("good_point:", &CommonContext::new());
         assert_eq!(
             parse_result.unwrap(),
             ParseResult {
@@ -511,15 +487,13 @@ mod parser_tests {
                     t: SegmentType::Code,
                     address: 0
                 }],
-                equs: hashmap! {},
-                defines: hashmap! {},
                 macroses: hashmap! {},
                 device: Some(Device::new(0)),
                 messages: vec![],
             }
         );
 
-        let parse_result = parse_str("good_point:\ngood_point2:");
+        let parse_result = parse_str("good_point:\ngood_point2:", &CommonContext::new());
         assert_eq!(
             parse_result.unwrap(),
             ParseResult {
@@ -543,15 +517,13 @@ mod parser_tests {
                     t: SegmentType::Code,
                     address: 0
                 }],
-                equs: hashmap! {},
-                defines: hashmap! {},
                 macroses: hashmap! {},
                 device: Some(Device::new(0)),
                 messages: vec![],
             }
         );
 
-        let parse_result = parse_str("good_point:; this is simple comment");
+        let parse_result = parse_str("good_point:; this is simple comment", &CommonContext::new());
         assert_eq!(
             parse_result.unwrap(),
             ParseResult {
@@ -566,30 +538,28 @@ mod parser_tests {
                     t: SegmentType::Code,
                     address: 0
                 }],
-                equs: hashmap! {},
-                defines: hashmap! {},
                 macroses: hashmap! {},
                 device: Some(Device::new(0)),
                 messages: vec![],
             }
         );
 
-        let parse_result = parse_str("bad_point: bla bla bla");
+        let parse_result = parse_str("bad_point: bla bla bla", &CommonContext::new());
         assert_eq!(parse_result.is_err(), true);
 
-        let parse_result = parse_str("bad_point::");
+        let parse_result = parse_str("bad_point::", &CommonContext::new());
         assert_eq!(parse_result.is_err(), true);
 
-        let parse_result = parse_str("bad_point: bla bla bla");
+        let parse_result = parse_str("bad_point: bla bla bla", &CommonContext::new());
         assert_eq!(parse_result.is_err(), true);
 
-        let parse_result = parse_str("bad_point: bad_point2:");
+        let parse_result = parse_str("bad_point: bad_point2:", &CommonContext::new());
         assert_eq!(parse_result.is_err(), true);
     }
 
     #[test]
     fn check_non_argument_commands() {
-        let parse_result = parse_str("nop\nnop\nnop\nret");
+        let parse_result = parse_str("nop\nnop\nnop\nret", &CommonContext::new());
         assert_eq!(
             parse_result.unwrap(),
             ParseResult {
@@ -627,15 +597,13 @@ mod parser_tests {
                     t: SegmentType::Code,
                     address: 0
                 }],
-                equs: hashmap! {},
-                defines: hashmap! {},
                 macroses: hashmap! {},
                 device: Some(Device::new(0)),
                 messages: vec![],
             }
         );
 
-        let parse_result = parse_str("label:\nnop\nnop\nret");
+        let parse_result = parse_str("label:\nnop\nnop\nret", &CommonContext::new());
         assert_eq!(
             parse_result.unwrap(),
             ParseResult {
@@ -673,15 +641,13 @@ mod parser_tests {
                     t: SegmentType::Code,
                     address: 0
                 }],
-                equs: hashmap! {},
-                defines: hashmap! {},
                 macroses: hashmap! {},
                 device: Some(Device::new(0)),
                 messages: vec![],
             }
         );
 
-        let parse_result = parse_str("seh\nclh\nnop\ncli");
+        let parse_result = parse_str("seh\nclh\nnop\ncli", &CommonContext::new());
         assert_eq!(
             parse_result.unwrap(),
             ParseResult {
@@ -719,8 +685,6 @@ mod parser_tests {
                     t: SegmentType::Code,
                     address: 0
                 }],
-                equs: hashmap! {},
-                defines: hashmap! {},
                 macroses: hashmap! {},
                 device: Some(Device::new(0)),
                 messages: vec![],
@@ -730,7 +694,7 @@ mod parser_tests {
 
     #[test]
     fn check_one_argument_commands() {
-        let parse_result = parse_str("push r0\nlsl r0\nswap r0\npop r1");
+        let parse_result = parse_str("push r0\nlsl r0\nswap r0\npop r1", &CommonContext::new());
         assert_eq!(
             parse_result.unwrap(),
             ParseResult {
@@ -768,15 +732,13 @@ mod parser_tests {
                     t: SegmentType::Code,
                     address: 0
                 }],
-                equs: hashmap! {},
-                defines: hashmap! {},
                 macroses: hashmap! {},
                 device: Some(Device::new(0)),
                 messages: vec![],
             }
         );
 
-        let parse_result = parse_str("tst r1\nbrpl exit\nrjmp error\n");
+        let parse_result = parse_str("tst r1\nbrpl exit\nrjmp error\n", &CommonContext::new());
         assert_eq!(
             parse_result.unwrap(),
             ParseResult {
@@ -813,8 +775,6 @@ mod parser_tests {
                     t: SegmentType::Code,
                     address: 0
                 }],
-                equs: hashmap! {},
-                defines: hashmap! {},
                 macroses: hashmap! {},
                 device: Some(Device::new(0)),
                 messages: vec![],
@@ -824,8 +784,10 @@ mod parser_tests {
 
     #[test]
     fn check_two_argument_commands() {
-        let parse_result =
-            parse_str("ldi r16, 1 << 2 | 1 << 1\nmov r0, r16\n subi r16, (-1)\nsts data, r16");
+        let parse_result = parse_str(
+            "ldi r16, 1 << 2 | 1 << 1\nmov r0, r16\n subi r16, (-1)\nsts data, r16",
+            &CommonContext::new(),
+        );
         assert_eq!(
             parse_result.unwrap(),
             ParseResult {
@@ -899,15 +861,16 @@ mod parser_tests {
                     t: SegmentType::Code,
                     address: 0
                 }],
-                equs: hashmap! {},
-                defines: hashmap! {},
                 macroses: hashmap! {},
                 device: Some(Device::new(0)),
                 messages: vec![],
             }
         );
 
-        let parse_result = parse_str("ld r17, X\nld r18, Y+\nld r19, -Z\nst X+, r19");
+        let parse_result = parse_str(
+            "ld r17, X\nld r18, Y+\nld r19, -Z\nst X+, r19",
+            &CommonContext::new(),
+        );
         assert_eq!(
             parse_result.unwrap(),
             ParseResult {
@@ -969,15 +932,13 @@ mod parser_tests {
                     t: SegmentType::Code,
                     address: 0
                 }],
-                equs: hashmap! {},
-                defines: hashmap! {},
                 macroses: hashmap! {},
                 device: Some(Device::new(0)),
                 messages: vec![],
             }
         );
 
-        let parse_result = parse_str("ldd r25, Z+2\nstd Z+6, r24");
+        let parse_result = parse_str("ldd r25, Z+2\nstd Z+6, r24", &CommonContext::new());
         assert_eq!(
             parse_result.unwrap(),
             ParseResult {
@@ -1019,8 +980,6 @@ mod parser_tests {
                     t: SegmentType::Code,
                     address: 0
                 }],
-                equs: hashmap! {},
-                defines: hashmap! {},
                 macroses: hashmap! {},
                 device: Some(Device::new(0)),
                 messages: vec![],

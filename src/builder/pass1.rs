@@ -1,8 +1,7 @@
 //! Contains first pass builder of AVRA-rs
 
-use std::collections::HashMap;
-
 use crate::builder::pass0::BuildResultPass0;
+use crate::context::{CommonContext, Context};
 use crate::device::Device;
 use crate::directive::{GetData, Operand};
 use crate::expr::Expr;
@@ -14,10 +13,6 @@ use failure::{bail, Error};
 pub struct BuildResultPass1 {
     // Input segments
     pub segments: Vec<Segment>,
-    // equals
-    pub equs: HashMap<String, Expr>,
-    // labels
-    pub labels: HashMap<String, (SegmentType, u32)>,
     // device
     pub device: Device,
     //
@@ -26,10 +21,12 @@ pub struct BuildResultPass1 {
     pub messages: Vec<String>,
 }
 
-pub fn build_pass_1(parsed: BuildResultPass0) -> Result<BuildResultPass1, Error> {
+pub fn build_pass_1(
+    parsed: BuildResultPass0,
+    common_context: &CommonContext,
+) -> Result<BuildResultPass1, Error> {
     let device = parsed.device.unwrap_or(Device::new(0));
     let mut segments = vec![];
-    let mut labels = HashMap::new();
     let mut code_offset = 0;
     let mut data_offset = device.ram_start;
     let mut eeprom_offset = 0;
@@ -41,7 +38,7 @@ pub fn build_pass_1(parsed: BuildResultPass0) -> Result<BuildResultPass1, Error>
         };
 
         let (current_end_offset, current_offset, items) =
-            pass_1_internal(&segment, offset, &mut labels)?;
+            pass_1_internal(&segment, offset, common_context)?;
         segments.push(Segment {
             items,
             t: segment.t,
@@ -65,8 +62,6 @@ pub fn build_pass_1(parsed: BuildResultPass0) -> Result<BuildResultPass1, Error>
 
     Ok(BuildResultPass1 {
         segments,
-        equs: parsed.equs,
-        labels,
         device,
         ram_filling,
         messages: parsed.messages,
@@ -76,7 +71,7 @@ pub fn build_pass_1(parsed: BuildResultPass0) -> Result<BuildResultPass1, Error>
 fn pass_1_internal(
     segment: &Segment,
     address: u32,
-    labels: &mut HashMap<String, (SegmentType, u32)>,
+    common_context: &CommonContext,
 ) -> Result<(u32, u32, Vec<(CodePoint, Item)>), Error> {
     let current_offset = if segment.address == 0 {
         address
@@ -93,7 +88,7 @@ fn pass_1_internal(
     for (line, item) in &segment.items {
         match item {
             Item::Label(name) => {
-                if let Some(_) = labels.insert(name.clone(), (segment.t, cur_address)) {
+                if let Some(_) = common_context.set_label(name.clone(), (segment.t, cur_address)) {
                     // TODO: add display current string of mistake and previous location
                     bail!("Identifier {} is used twice, {}", name, line);
                 }
@@ -176,61 +171,17 @@ mod builder_tests {
 
     #[test]
     fn check_empty() {
-        let build_result = build_pass_1(BuildResultPass0::new());
-        assert_eq!(
-            build_result.unwrap(),
-            BuildResultPass1 {
-                segments: vec![],
-                equs: HashMap::new(),
-                labels: HashMap::new(),
-                device: Device::new(0),
-                ram_filling: 0,
-                messages: vec![],
-            }
-        );
+        let common_context = CommonContext::new();
+        let build_result = build_pass_1(BuildResultPass0::new(), &common_context);
+        assert!(build_result.is_ok());
     }
 
     #[test]
     fn check_labels() {
-        let build_result = build_pass_1(BuildResultPass0 {
-            segments: vec![Segment {
-                items: vec![(
-                    CodePoint {
-                        line_num: 1,
-                        num: 1,
-                    },
-                    Item::Label("good_point".to_string()),
-                )],
-                t: SegmentType::Code,
-                address: 0,
-            }],
-            equs: HashMap::new(),
-            device: Some(Device::new(0)),
-            messages: vec![],
-        });
-
-        assert_eq!(
-            build_result.unwrap(),
-            BuildResultPass1 {
+        let common_context = CommonContext::new();
+        let build_result = build_pass_1(
+            BuildResultPass0 {
                 segments: vec![Segment {
-                    items: vec![],
-                    t: SegmentType::Code,
-                    address: 0,
-                }],
-                equs: HashMap::new(),
-                labels: hashmap! {"good_point".to_string() => (SegmentType::Code, 0)},
-                device: Device::new(0),
-                ram_filling: 0,
-                messages: vec![],
-            }
-        );
-    }
-
-    #[test]
-    fn check_segments() {
-        let build_result = build_pass_1(BuildResultPass0 {
-            segments: vec![
-                Segment {
                     items: vec![(
                         CodePoint {
                             line_num: 1,
@@ -240,23 +191,67 @@ mod builder_tests {
                     )],
                     t: SegmentType::Code,
                     address: 0,
-                },
-                Segment {
-                    items: vec![(
-                        CodePoint {
-                            line_num: 2,
-                            num: 1,
-                        },
-                        Item::Label("good_point2".to_string()),
-                    )],
+                }],
+                device: Some(Device::new(0)),
+                messages: vec![],
+            },
+            &common_context,
+        );
+
+        assert_eq!(
+            build_result.unwrap(),
+            BuildResultPass1 {
+                segments: vec![Segment {
+                    items: vec![],
                     t: SegmentType::Code,
-                    address: 0x2,
-                },
-            ],
-            equs: HashMap::new(),
-            device: Some(Device::new(0)),
-            messages: vec![],
-        });
+                    address: 0,
+                }],
+                device: Device::new(0),
+                ram_filling: 0,
+                messages: vec![],
+            }
+        );
+
+        assert_eq!(
+            common_context.labels.borrow().clone(),
+            hashmap! {"good_point".to_string() => (SegmentType::Code, 0)}
+        );
+    }
+
+    #[test]
+    fn check_segments() {
+        let common_context = CommonContext::new();
+        let build_result = build_pass_1(
+            BuildResultPass0 {
+                segments: vec![
+                    Segment {
+                        items: vec![(
+                            CodePoint {
+                                line_num: 1,
+                                num: 1,
+                            },
+                            Item::Label("good_point".to_string()),
+                        )],
+                        t: SegmentType::Code,
+                        address: 0,
+                    },
+                    Segment {
+                        items: vec![(
+                            CodePoint {
+                                line_num: 2,
+                                num: 1,
+                            },
+                            Item::Label("good_point2".to_string()),
+                        )],
+                        t: SegmentType::Code,
+                        address: 0x2,
+                    },
+                ],
+                device: Some(Device::new(0)),
+                messages: vec![],
+            },
+            &common_context,
+        );
 
         assert_eq!(
             build_result.unwrap(),
@@ -273,23 +268,29 @@ mod builder_tests {
                         address: 0x2,
                     }
                 ],
-                equs: HashMap::new(),
-                labels: hashmap! {
-                    "good_point".to_string() => (SegmentType::Code, 0),
-                    "good_point2".to_string() => (SegmentType::Code, 0x2),
-
-                },
                 device: Device::new(0),
                 ram_filling: 0,
                 messages: vec![],
             }
         );
 
-        let parse_result = parse_str("good_point:\n.cseg\n.org 0x20\ngood_point2:");
+        assert_eq!(
+            common_context.labels.borrow().clone(),
+            hashmap! {
+                        "good_point".to_string() => (SegmentType::Code, 0),
+                        "good_point2".to_string() => (SegmentType::Code, 0x2),
+            }
+        );
 
-        let post_parse_result = build_pass_0(parse_result.unwrap());
+        let common_context = CommonContext::new();
+        let parse_result = parse_str(
+            "good_point:\n.cseg\n.org 0x20\ngood_point2:",
+            &common_context,
+        );
 
-        let build_result = build_pass_1(post_parse_result.unwrap());
+        let post_parse_result = build_pass_0(parse_result.unwrap(), &common_context);
+
+        let build_result = build_pass_1(post_parse_result.unwrap(), &common_context);
 
         assert_eq!(
             build_result.unwrap(),
@@ -306,22 +307,29 @@ mod builder_tests {
                         address: 0x20,
                     }
                 ],
-                equs: HashMap::new(),
-                labels: hashmap! {
-                    "good_point".to_string() => (SegmentType::Code, 0),
-                    "good_point2".to_string() => (SegmentType::Code, 0x20),
-                },
                 device: Device::new(0),
                 ram_filling: 0,
                 messages: vec![],
             }
         );
 
-        let parse_result = parse_str("good_point:\n.dseg\ngood_point2:\n.cseg\ngood_point3:");
+        assert_eq!(
+            common_context.labels.borrow().clone(),
+            hashmap! {
+                        "good_point".to_string() => (SegmentType::Code, 0),
+                        "good_point2".to_string() => (SegmentType::Code, 0x20),
+            }
+        );
 
-        let post_parse_result = build_pass_0(parse_result.unwrap());
+        let common_context = CommonContext::new();
+        let parse_result = parse_str(
+            "good_point:\n.dseg\ngood_point2:\n.cseg\ngood_point3:",
+            &common_context,
+        );
 
-        let build_result = build_pass_1(post_parse_result.unwrap());
+        let post_parse_result = build_pass_0(parse_result.unwrap(), &common_context);
+
+        let build_result = build_pass_1(post_parse_result.unwrap(), &common_context);
 
         assert_eq!(
             build_result.unwrap(),
@@ -343,21 +351,25 @@ mod builder_tests {
                         address: 0,
                     }
                 ],
-                equs: HashMap::new(),
-                labels: hashmap! {
-                    "good_point".to_string() => (SegmentType::Code, 0),
-                    "good_point2".to_string() => (SegmentType::Data, 0x60),
-                    "good_point3".to_string() => (SegmentType::Code, 0),
-                },
                 device: Device::new(0),
                 ram_filling: 0,
                 messages: vec![],
+            }
+        );
+
+        assert_eq!(
+            common_context.labels.borrow().clone(),
+            hashmap! {
+                        "good_point".to_string() => (SegmentType::Code, 0),
+                        "good_point2".to_string() => (SegmentType::Data, 0x60),
+                        "good_point3".to_string() => (SegmentType::Code, 0),
             }
         );
     }
 
     #[test]
     fn check_data_placement() {
+        let common_context = CommonContext::new();
         let parse_result = parse_str(
             "
         ldi r16, data
@@ -368,10 +380,11 @@ data_w:
 m1:
         ldi r18, data_w
         ",
+            &common_context,
         );
-        let post_parse_result = build_pass_0(parse_result.unwrap());
+        let post_parse_result = build_pass_0(parse_result.unwrap(), &common_context);
 
-        let build_result = build_pass_1(post_parse_result.unwrap());
+        let build_result = build_pass_1(post_parse_result.unwrap(), &common_context);
 
         assert_eq!(
             build_result.unwrap(),
@@ -448,18 +461,22 @@ m1:
                     t: SegmentType::Code,
                     address: 0,
                 }],
-                equs: HashMap::new(),
-                labels: hashmap! {
-                    "data".to_string() => (SegmentType::Code, 2),
-                    "data_w".to_string() => (SegmentType::Code, 10),
-                    "m1".to_string() => (SegmentType::Code, 13),
-                },
                 device: Device::new(0),
                 ram_filling: 0,
                 messages: vec![],
             }
         );
 
+        assert_eq!(
+            common_context.labels.borrow().clone(),
+            hashmap! {
+                        "data".to_string() => (SegmentType::Code, 2),
+                        "data_w".to_string() => (SegmentType::Code, 10),
+                        "m1".to_string() => (SegmentType::Code, 13),
+            }
+        );
+
+        let common_context = CommonContext::new();
         let parse_result = parse_str(
             "
         ldi r16, data
@@ -474,10 +491,11 @@ m1:
 data_d: .dd 0x12345678, 0x9abcdef0
 data_q: .dq 0x1, 0x1000000000011000
         ",
+            &common_context,
         );
-        let post_parse_result = build_pass_0(parse_result.unwrap());
+        let post_parse_result = build_pass_0(parse_result.unwrap(), &common_context);
 
-        let build_result = build_pass_1(post_parse_result.unwrap());
+        let build_result = build_pass_1(post_parse_result.unwrap(), &common_context);
 
         assert_eq!(
             build_result.unwrap(),
@@ -593,25 +611,29 @@ data_q: .dq 0x1, 0x1000000000011000
                         address: 2,
                     }
                 ],
-                equs: HashMap::new(),
-                labels: hashmap! {
-                    "data".to_string() => (SegmentType::Eeprom, 0),
-                    "data_w".to_string() => (SegmentType::Eeprom, 0xf),
-                    "m1".to_string() => (SegmentType::Code, 2),
-                    "data_d".to_string() => (SegmentType::Code, 3),
-                    "data_q".to_string() => (SegmentType::Code, 7),
-                },
                 device: Device::new(0),
                 ram_filling: 0,
                 messages: vec![],
             }
         );
 
-        let parse_result = parse_str(".dseg\ndata: .byte 1\ncounter: .byte 2");
+        assert_eq!(
+            common_context.labels.borrow().clone(),
+            hashmap! {
+                        "data".to_string() => (SegmentType::Eeprom, 0),
+                        "data_w".to_string() => (SegmentType::Eeprom, 0xf),
+                        "m1".to_string() => (SegmentType::Code, 2),
+                        "data_d".to_string() => (SegmentType::Code, 3),
+                        "data_q".to_string() => (SegmentType::Code, 7),
+            }
+        );
 
-        let post_parse_result = build_pass_0(parse_result.unwrap());
+        let common_context = CommonContext::new();
+        let parse_result = parse_str(".dseg\ndata: .byte 1\ncounter: .byte 2", &common_context);
 
-        let build_result = build_pass_1(post_parse_result.unwrap());
+        let post_parse_result = build_pass_0(parse_result.unwrap(), &common_context);
+
+        let build_result = build_pass_1(post_parse_result.unwrap(), &common_context);
 
         assert_eq!(
             build_result.unwrap(),
@@ -621,14 +643,17 @@ data_q: .dq 0x1, 0x1000000000011000
                     t: SegmentType::Data,
                     address: 0x60,
                 },],
-                equs: HashMap::new(),
-                labels: hashmap! {
-                    "data".to_string() => (SegmentType::Data, 0x60),
-                    "counter".to_string() => (SegmentType::Data, 0x61),
-                },
                 device: Device::new(0),
                 ram_filling: 3,
                 messages: vec![],
+            }
+        );
+
+        assert_eq!(
+            common_context.labels.borrow().clone(),
+            hashmap! {
+                        "data".to_string() => (SegmentType::Data, 0x60),
+                        "counter".to_string() => (SegmentType::Data, 0x61),
             }
         );
     }

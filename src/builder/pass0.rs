@@ -5,8 +5,8 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::string::ToString;
 
+use crate::context::CommonContext;
 use crate::device::Device;
-use crate::expr::Expr;
 use crate::instruction::operation::Operation;
 use crate::parser::{
     parse_iter, CodePoint, Item, Macro, ParseContext, ParseResult, Paths, Segment, SegmentType,
@@ -20,8 +20,6 @@ use maplit::btreeset;
 pub struct BuildResultPass0 {
     // collect of segments
     pub segments: Vec<Segment>,
-    // equals
-    pub equs: HashMap<String, Expr>,
     // device
     pub device: Option<Device>,
     // messages
@@ -32,7 +30,6 @@ impl BuildResultPass0 {
     pub fn new() -> Self {
         Self {
             segments: vec![],
-            equs: HashMap::new(),
             device: Some(Device::new(0)),
             messages: vec![],
         }
@@ -43,10 +40,8 @@ impl BuildResultPass0 {
 pub struct Pass0Context {
     pub current_path: PathBuf,
     pub include_paths: RefCell<Paths>,
-    // equals
-    pub equs: Rc<RefCell<HashMap<String, Expr>>>,
-    // defines
-    pub defines: Rc<RefCell<HashMap<String, Expr>>>,
+    // common context
+    pub common_context: CommonContext,
     // device
     pub device: Rc<RefCell<Option<Device>>>,
     // segments
@@ -84,25 +79,25 @@ impl Pass0Context {
             .filter(|x| !x.borrow().is_empty())
             .map(|x| x.borrow().clone())
             .collect();
-        let equs = self.equs.borrow().clone();
         let device = self.device.borrow().clone();
         let messages = self.messages.borrow().clone();
 
         BuildResultPass0 {
             segments,
-            equs,
             device,
             messages,
         }
     }
 }
 
-pub fn build_pass_0(parsed: ParseResult) -> Result<BuildResultPass0, Error> {
+pub fn build_pass_0(
+    parsed: ParseResult,
+    common_context: &CommonContext,
+) -> Result<BuildResultPass0, Error> {
     let context = Pass0Context {
         current_path: PathBuf::new(),
         include_paths: RefCell::new(btreeset! {}),
-        equs: Rc::new(RefCell::new(parsed.equs)),
-        defines: Rc::new(RefCell::new(parsed.defines)),
+        common_context: common_context.clone(),
         device: Rc::new(RefCell::new(parsed.device)),
         segments: Rc::new(RefCell::new(vec![])),
         macros: Rc::new(Macro::new()),
@@ -208,8 +203,7 @@ fn macro_expand(
         let parse_context = ParseContext {
             current_path: context.current_path.clone(),
             include_paths: context.include_paths.clone(),
-            equs: context.equs.clone(),
-            defines: context.defines.clone(),
+            common_context: context.common_context.clone(),
             device: context.device.clone(),
             segments: segments.clone(),
             macros: context.macros.clone(),
@@ -233,25 +227,18 @@ fn macro_expand(
 #[cfg(test)]
 mod builder_tests {
     use super::*;
+    use crate::expr::Expr;
     use crate::instruction::{register::Reg8, InstructionOps};
     use crate::parser::parse_str;
 
-    use maplit::hashmap;
-
     #[test]
     fn check_non_argument_macro() {
-        let parse_result = parse_str("");
-        let build_result = build_pass_0(parse_result.unwrap());
-        assert_eq!(
-            build_result.unwrap(),
-            BuildResultPass0 {
-                segments: vec![],
-                equs: hashmap! {},
-                device: Some(Device::new(0)),
-                messages: vec![],
-            }
-        );
+        let common_context = CommonContext::new();
+        let parse_result = parse_str("", &common_context);
+        let build_result = build_pass_0(parse_result.unwrap(), &common_context);
+        assert!(build_result.is_ok());
 
+        let common_context = CommonContext::new();
         let parse_result = parse_str(
             "
 .macro test_one
@@ -261,8 +248,9 @@ mod builder_tests {
         test_one
         test_one
         ",
+            &common_context,
         );
-        let build_result = build_pass_0(parse_result.unwrap());
+        let build_result = build_pass_0(parse_result.unwrap(), &common_context);
         assert_eq!(
             build_result.unwrap(),
             BuildResultPass0 {
@@ -324,7 +312,6 @@ mod builder_tests {
                     t: SegmentType::Code,
                     address: 0x0,
                 }],
-                equs: hashmap! {},
                 device: Some(Device::new(0)),
                 messages: vec![],
             }
@@ -333,6 +320,7 @@ mod builder_tests {
 
     #[test]
     fn check_for_argument_macro() {
+        let common_context = CommonContext::new();
         let parse_result = parse_str(
             "
 .macro test_one
@@ -342,8 +330,9 @@ mod builder_tests {
         test_one 1, 2
         test_one 3, 4
         ",
+            &common_context,
         );
-        let build_result = build_pass_0(parse_result.unwrap());
+        let build_result = build_pass_0(parse_result.unwrap(), &common_context);
         assert_eq!(
             build_result.unwrap(),
             BuildResultPass0 {
@@ -405,7 +394,6 @@ mod builder_tests {
                     t: SegmentType::Code,
                     address: 0x0,
                 }],
-                equs: hashmap! {},
                 device: Some(Device::new(0)),
                 messages: vec![],
             }
@@ -414,6 +402,7 @@ mod builder_tests {
 
     #[test]
     fn check_for_nested_macro() {
+        let common_context = CommonContext::new();
         let parse_result = parse_str(
             "
 .macro test_one
@@ -426,8 +415,9 @@ mod builder_tests {
 .endm
         double_test_one 1, 2, 3, 4
         ",
+            &common_context,
         );
-        let build_result = build_pass_0(parse_result.unwrap());
+        let build_result = build_pass_0(parse_result.unwrap(), &common_context);
         assert_eq!(
             build_result.unwrap(),
             BuildResultPass0 {
@@ -489,7 +479,6 @@ mod builder_tests {
                     t: SegmentType::Code,
                     address: 0x0,
                 }],
-                equs: hashmap! {},
                 device: Some(Device::new(0)),
                 messages: vec![],
             }

@@ -7,6 +7,7 @@ pub mod pass2;
 use crate::builder::pass0::build_pass_0 as pass0;
 use crate::builder::pass1::build_pass_1 as pass1;
 use crate::builder::pass2::build_pass_2 as pass2;
+use crate::context::CommonContext;
 use crate::parser::{parse_file, parse_str, ParseResult, Paths};
 
 use failure::{bail, Error};
@@ -25,12 +26,15 @@ pub struct BuildResult {
     pub messages: Vec<String>,
 }
 
-fn build_from_parsed(parsed: ParseResult) -> Result<BuildResult, Error> {
-    let passed_0 = pass0(parsed)?;
+fn build_from_parsed(
+    parsed: ParseResult,
+    common_context: &CommonContext,
+) -> Result<BuildResult, Error> {
+    let passed_0 = pass0(parsed, common_context)?;
 
-    let passed_1 = pass1(passed_0)?;
+    let passed_1 = pass1(passed_0, common_context)?;
 
-    let passed_2 = pass2(passed_1)?;
+    let passed_2 = pass2(passed_1, common_context)?;
 
     if passed_2.code.len() as u32 > passed_2.device.flash_size * 2 {
         bail!(
@@ -65,15 +69,19 @@ fn build_from_parsed(parsed: ParseResult) -> Result<BuildResult, Error> {
 }
 
 pub fn build_str(source: &str) -> Result<BuildResult, Error> {
-    let parsed = parse_str(source)?;
+    let common_context = CommonContext::new();
 
-    build_from_parsed(parsed)
+    let parsed = parse_str(source, &common_context)?;
+
+    build_from_parsed(parsed, &common_context)
 }
 
 pub fn build_file(path: PathBuf, paths: Paths) -> Result<BuildResult, Error> {
-    let parsed = parse_file(path, paths)?;
+    let common_context = CommonContext::new();
 
-    build_from_parsed(parsed)
+    let parsed = parse_file(path, paths, &common_context)?;
+
+    build_from_parsed(parsed, &common_context)
 }
 
 #[cfg(test)]
