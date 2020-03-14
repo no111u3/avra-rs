@@ -82,7 +82,7 @@ pub enum Directive {
     /// Set up/down overlapping section (unsupported)
     Overlap,
     NoOverlap,
-    /// Preprocessor pragmas (partially)
+    /// Preprocessor pragmas
     Pragma,
 
     /// For extend and macross support
@@ -1402,6 +1402,40 @@ mod parser_tests {
                     ],
                     "test2".to_string() => vec![]
                 },
+                device: Some(Device::new(0)),
+            }
+        );
+    }
+
+    #[test]
+    fn check_directive_pragma() {
+        let parse_result = parse_str(
+            "
+.pragma option use core v1
+        ",
+        );
+        assert_eq!(
+            parse_result.unwrap(),
+            ParseResult {
+                segments: vec![Segment {
+                    items: vec![(
+                        CodePoint {
+                            line_num: 2,
+                            num: 2
+                        },
+                        Item::Pragma(vec![
+                            Operand::E(Expr::Ident("option".to_string())),
+                            Operand::E(Expr::Ident("use".to_string())),
+                            Operand::E(Expr::Ident("core".to_string())),
+                            Operand::E(Expr::Ident("v1".to_string())),
+                        ])
+                    )],
+                    t: SegmentType::Code,
+                    address: 0
+                }],
+                equs: HashMap::new(),
+                defines: hashmap! {},
+                macroses: hashmap! {},
                 device: Some(Device::new(0)),
             }
         );
