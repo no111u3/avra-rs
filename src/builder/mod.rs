@@ -36,33 +36,35 @@ fn build_from_parsed(
 
     let passed_2 = pass2(passed_1, common_context)?;
 
-    if passed_2.code.len() as u32 > passed_2.device.flash_size * 2 {
+    let device = common_context.get_device();
+
+    if passed_2.code.len() as u32 > device.flash_size * 2 {
         bail!(
             "Flash size overdue by {} bytes",
-            passed_2.code.len() as u32 - passed_2.device.flash_size * 2
+            passed_2.code.len() as u32 - device.flash_size * 2
         )
     }
 
-    if passed_2.eeprom.len() as u32 > passed_2.device.eeprom_size {
+    if passed_2.eeprom.len() as u32 > device.eeprom_size {
         bail!(
             "Eeprom size overdue by {} bytes",
-            passed_2.eeprom.len() as u32 - passed_2.device.eeprom_size
+            passed_2.eeprom.len() as u32 - device.eeprom_size
         )
     }
 
-    if passed_2.ram_filling > passed_2.device.ram_size {
+    if passed_2.ram_filling > device.ram_size {
         bail!(
             "RAM size overdue by {} bytes",
-            passed_2.ram_filling - passed_2.device.ram_size
+            passed_2.ram_filling - device.ram_size
         )
     }
 
     Ok(BuildResult {
         code: passed_2.code,
         eeprom: passed_2.eeprom,
-        flash_size: passed_2.device.flash_size,
-        eeprom_size: passed_2.device.eeprom_size,
-        ram_size: passed_2.device.ram_size,
+        flash_size: device.flash_size,
+        eeprom_size: device.eeprom_size,
+        ram_size: device.ram_size,
         ram_filling: passed_2.ram_filling,
         messages: passed_2.messages,
     })

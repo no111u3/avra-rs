@@ -6,7 +6,6 @@ use std::rc::Rc;
 use std::string::ToString;
 
 use crate::context::CommonContext;
-use crate::device::Device;
 use crate::instruction::operation::Operation;
 use crate::parser::{
     parse_iter, CodePoint, Item, Macro, ParseContext, ParseResult, Paths, Segment, SegmentType,
@@ -20,8 +19,6 @@ use maplit::btreeset;
 pub struct BuildResultPass0 {
     // collect of segments
     pub segments: Vec<Segment>,
-    // device
-    pub device: Option<Device>,
     // messages
     pub messages: Vec<String>,
 }
@@ -30,7 +27,6 @@ impl BuildResultPass0 {
     pub fn new() -> Self {
         Self {
             segments: vec![],
-            device: Some(Device::new(0)),
             messages: vec![],
         }
     }
@@ -42,8 +38,6 @@ pub struct Pass0Context {
     pub include_paths: RefCell<Paths>,
     // common context
     pub common_context: CommonContext,
-    // device
-    pub device: Rc<RefCell<Option<Device>>>,
     // segments
     pub segments: Rc<RefCell<Vec<Rc<RefCell<Segment>>>>>,
     // macro
@@ -79,14 +73,9 @@ impl Pass0Context {
             .filter(|x| !x.borrow().is_empty())
             .map(|x| x.borrow().clone())
             .collect();
-        let device = self.device.borrow().clone();
         let messages = self.messages.borrow().clone();
 
-        BuildResultPass0 {
-            segments,
-            device,
-            messages,
-        }
+        BuildResultPass0 { segments, messages }
     }
 }
 
@@ -98,7 +87,6 @@ pub fn build_pass_0(
         current_path: PathBuf::new(),
         include_paths: RefCell::new(btreeset! {}),
         common_context: common_context.clone(),
-        device: Rc::new(RefCell::new(parsed.device)),
         segments: Rc::new(RefCell::new(vec![])),
         macros: Rc::new(Macro::new()),
         messages: Rc::new(RefCell::new(parsed.messages)),
@@ -204,7 +192,6 @@ fn macro_expand(
             current_path: context.current_path.clone(),
             include_paths: context.include_paths.clone(),
             common_context: context.common_context.clone(),
-            device: context.device.clone(),
             segments: segments.clone(),
             macros: context.macros.clone(),
             messages: context.messages.clone(),
@@ -312,7 +299,6 @@ mod builder_tests {
                     t: SegmentType::Code,
                     address: 0x0,
                 }],
-                device: Some(Device::new(0)),
                 messages: vec![],
             }
         );
@@ -394,7 +380,6 @@ mod builder_tests {
                     t: SegmentType::Code,
                     address: 0x0,
                 }],
-                device: Some(Device::new(0)),
                 messages: vec![],
             }
         );
@@ -479,7 +464,6 @@ mod builder_tests {
                     t: SegmentType::Code,
                     address: 0x0,
                 }],
-                device: Some(Device::new(0)),
                 messages: vec![],
             }
         );

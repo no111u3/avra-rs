@@ -2,29 +2,14 @@
 
 use crate::builder::pass1::BuildResultPass1;
 use crate::context::{CommonContext, Context};
-use crate::device::Device;
 use crate::directive::GetData;
 use crate::expr::Expr;
 use crate::instruction::{process, register::Reg8};
 use crate::parser::{DataDefine, Item, Segment, SegmentType};
 
-use std::collections::HashMap;
 use std::str::FromStr;
 
 use failure::{bail, Error};
-
-use maplit::hashmap;
-use std::cell::RefCell;
-
-#[derive(Clone, PartialEq, Eq, Debug)]
-struct Pass2Context {
-    // common context
-    common_context: CommonContext,
-    // special
-    special: RefCell<HashMap<String, Expr>>,
-    // device
-    device: Device,
-}
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct BuildResultPass2 {
@@ -32,7 +17,6 @@ pub struct BuildResultPass2 {
     pub code: Vec<u8>,
     pub eeprom_start_address: u32,
     pub eeprom: Vec<u8>,
-    pub device: Device,
     pub ram_filling: u32,
     pub messages: Vec<String>,
 }
@@ -45,12 +29,6 @@ pub fn build_pass_2(
     let code_start_address = 0x0;
     let mut eeprom = vec![];
     let eeprom_start_address = 0x0;
-
-    let context = Pass2Context {
-        common_context: common_context.clone(),
-        special: RefCell::new(hashmap! {}),
-        device: pass1.device,
-    };
 
     for segment in pass1.segments {
         // TODO: Rewrite to correct ordering of segment offsets and sizes
@@ -75,7 +53,7 @@ pub fn build_pass_2(
             SegmentType::Data => {}
         }
 
-        let fragment = pass_2_internal(&segment, &context)?;
+        let fragment = pass_2_internal(&segment, common_context)?;
 
         match segment.t {
             SegmentType::Code => {
@@ -94,29 +72,25 @@ pub fn build_pass_2(
         code,
         eeprom_start_address,
         eeprom,
-        device: context.device,
         ram_filling: pass1.ram_filling,
         messages: pass1.messages,
     })
 }
 
-fn pass_2_internal(segment: &Segment, context: &Pass2Context) -> Result<Vec<u8>, Error> {
+fn pass_2_internal(segment: &Segment, common_context: &CommonContext) -> Result<Vec<u8>, Error> {
     let mut code_fragment = vec![];
 
     let mut cur_address = segment.address;
 
     for (line, item) in segment.items.iter() {
-        context
-            .common_context
-            .set_special("pc".to_string(), Expr::Const(cur_address as i64));
+        common_context.set_special("pc".to_string(), Expr::Const(cur_address as i64));
         match item {
             Item::Instruction(op, op_args) => {
-                if context.device.check_operation(op) {
-                    let complete_op =
-                        match process(&op, &op_args, cur_address, &context.common_context) {
-                            Ok(ok) => ok,
-                            Err(e) => bail!("{}, {}", e, line),
-                        };
+                if common_context.get_device().check_operation(op) {
+                    let complete_op = match process(&op, &op_args, cur_address, common_context) {
+                        Ok(ok) => ok,
+                        Err(e) => bail!("{}, {}", e, line),
+                    };
                     cur_address += complete_op.len() as u32 / 2;
                     code_fragment.extend(complete_op);
                 } else {
@@ -129,10 +103,10 @@ fn pass_2_internal(segment: &Segment, context: &Pass2Context) -> Result<Vec<u8>,
             }
             Item::Data(item_type, items) => {
                 let data = match item_type {
-                    DataDefine::Db => items.get_bytes(&context.common_context),
-                    DataDefine::Dw => items.get_words(&context.common_context),
-                    DataDefine::Dd => items.get_double_words(&context.common_context),
-                    DataDefine::Dq => items.get_quad_words(&context.common_context),
+                    DataDefine::Db => items.get_bytes(common_context),
+                    DataDefine::Dw => items.get_words(common_context),
+                    DataDefine::Dd => items.get_double_words(common_context),
+                    DataDefine::Dq => items.get_quad_words(common_context),
                 }?;
                 cur_address += if let SegmentType::Code = segment.t {
                     data.len() as u32 / 2
@@ -148,7 +122,7 @@ fn pass_2_internal(segment: &Segment, context: &Pass2Context) -> Result<Vec<u8>,
                 }
             }
             Item::Def(alias, Expr::Ident(register)) => {
-                if let Some(_) = context.common_context.set_def(
+                if let Some(_) = common_context.set_def(
                     alias.to_lowercase(),
                     Reg8::from_str(register.to_lowercase().as_str()).unwrap(),
                 ) {
@@ -157,14 +131,14 @@ fn pass_2_internal(segment: &Segment, context: &Pass2Context) -> Result<Vec<u8>,
                 }
             }
             Item::Undef(alias) => {
-                if let None = context.common_context.defs.borrow_mut().remove(alias) {
+                if let None = common_context.defs.borrow_mut().remove(alias) {
                     bail!("Identifier {} isn't defined, {}", alias, line);
                 }
             }
             Item::Set(name, expr) => {
-                let value = expr.run(&context.common_context)?;
-                if context.common_context.exist(name) {
-                    let mut sets = context.common_context.sets.borrow_mut();
+                let value = expr.run(common_context)?;
+                if common_context.exist(name) {
+                    let mut sets = common_context.sets.borrow_mut();
                     if let Some(_) = sets.get(name) {
                         sets.insert(name.clone(), Expr::Const(value));
                     } else {
@@ -172,8 +146,7 @@ fn pass_2_internal(segment: &Segment, context: &Pass2Context) -> Result<Vec<u8>,
                         bail!("Identifier {} is used twice, {}", name, line);
                     }
                 } else {
-                    context
-                        .common_context
+                    common_context
                         .sets
                         .borrow_mut()
                         .insert(name.clone(), Expr::Const(value));
@@ -207,7 +180,6 @@ mod builder_tests {
                 code: vec![],
                 eeprom_start_address: 0x0,
                 eeprom: vec![],
-                device: Device::new(0),
                 ram_filling: 0,
                 messages: vec![],
             }
@@ -239,7 +211,6 @@ mod builder_tests {
                 code: vec![0x00, 0x00, 0x08, 0x95, 0x58, 0x94, 0xd8, 0x94],
                 eeprom_start_address: 0x0,
                 eeprom: vec![],
-                device: Device::new(0),
                 ram_filling: 0,
                 messages: vec![],
             }
@@ -271,7 +242,6 @@ mod builder_tests {
                 code: vec![0xf, 0x92, 0x0, 0xc, 0x2, 0x94, 0x1f, 0x90],
                 eeprom_start_address: 0x0,
                 eeprom: vec![],
-                device: Device::new(0),
                 ram_filling: 0,
                 messages: vec![],
             }
@@ -301,7 +271,6 @@ exit:
                 code: vec![0x11, 0x20, 0x2, 0xf4, 0xfe, 0xcf],
                 eeprom_start_address: 0x0,
                 eeprom: vec![],
-                device: Device::new(0),
                 ram_filling: 0,
                 messages: vec![],
             }
@@ -334,7 +303,6 @@ data:
                 code: vec![0x6, 0xe0, 0x0, 0x2e, 0xf, 0x5f, 0x0, 0x93, 0x5, 0x0],
                 eeprom_start_address: 0x0,
                 eeprom: vec![],
-                device: Device::new(0),
                 ram_filling: 0,
                 messages: vec![],
             }
@@ -363,7 +331,6 @@ data:
                 code: vec![0x1c, 0x91, 0x29, 0x91, 0x32, 0x91, 0x3d, 0x93],
                 eeprom_start_address: 0x0,
                 eeprom: vec![],
-                device: Device::new(0),
                 ram_filling: 0,
                 messages: vec![],
             }
@@ -390,7 +357,6 @@ data:
                 code: vec![0x92, 0x81, 0x86, 0x83],
                 eeprom_start_address: 0x0,
                 eeprom: vec![],
-                device: Device::new(0),
                 ram_filling: 0,
                 messages: vec![],
             }
@@ -424,7 +390,6 @@ data:   .db 15, 26, \"Hello, World\", end
                 ],
                 eeprom_start_address: 0x0,
                 eeprom: vec![],
-                device: Device::new(0),
                 ram_filling: 0,
                 messages: vec![],
             }
@@ -453,7 +418,6 @@ data_w:
                 code: vec![0x21, 0xe0, 0x44, 0xff, 0x0, 0x0, 0x4e, 0xda],
                 eeprom_start_address: 0x0,
                 eeprom: vec![],
-                device: Device::new(0),
                 ram_filling: 0,
                 messages: vec![],
             }
@@ -481,7 +445,6 @@ data_d:
                 code: vec![0x21, 0xe0, 0x78, 0x56, 0x34, 0x12, 0xf0, 0xde, 0xbc, 0x9a],
                 eeprom_start_address: 0x0,
                 eeprom: vec![],
-                device: Device::new(0),
                 ram_filling: 0,
                 messages: vec![],
             }
@@ -512,7 +475,6 @@ data_q:
                 ],
                 eeprom_start_address: 0x0,
                 eeprom: vec![],
-                device: Device::new(0),
                 ram_filling: 0,
                 messages: vec![],
             }
@@ -546,7 +508,6 @@ data_q:
                 code: vec![0x00, 0x00, 0x00, 0x00, 0x58, 0x94, 0x00, 0x00, 0x00, 0x00, 0xd8, 0x94],
                 eeprom_start_address: 0x0,
                 eeprom: vec![],
-                device: Device::new(0),
                 ram_filling: 0,
                 messages: vec![],
             }
@@ -579,7 +540,6 @@ data_w:
                 code: vec![0x20, 0xe0],
                 eeprom_start_address: 0x0,
                 eeprom: vec![0x44, 0xff, 0x0, 0x0, 0x4e, 0xda],
-                device: Device::new(0),
                 ram_filling: 0,
                 messages: vec![],
             }
@@ -615,7 +575,6 @@ counter:
                 code: vec![0x20, 0x91, 0x60, 0x0, 0x0, 0x91, 0x61, 0x0, 0x10, 0x91, 0x62, 0x0],
                 eeprom_start_address: 0x0,
                 eeprom: vec![],
-                device: Device::new(0),
                 ram_filling: 3,
                 messages: vec![],
             }
@@ -646,7 +605,6 @@ counter:
                 code: vec![0x1, 0x50, 0xf1, 0xf3, 0xff, 0xcf],
                 eeprom_start_address: 0x0,
                 eeprom: vec![],
-                device: Device::new(0),
                 ram_filling: 0,
                 messages: vec![],
             }

@@ -2,7 +2,6 @@
 
 use crate::builder::pass0::BuildResultPass0;
 use crate::context::{CommonContext, Context};
-use crate::device::Device;
 use crate::directive::{GetData, Operand};
 use crate::expr::Expr;
 use crate::parser::{CodePoint, DataDefine, Item, Segment, SegmentType};
@@ -13,8 +12,6 @@ use failure::{bail, Error};
 pub struct BuildResultPass1 {
     // Input segments
     pub segments: Vec<Segment>,
-    // device
-    pub device: Device,
     //
     pub ram_filling: u32,
     // messages
@@ -25,7 +22,7 @@ pub fn build_pass_1(
     parsed: BuildResultPass0,
     common_context: &CommonContext,
 ) -> Result<BuildResultPass1, Error> {
-    let device = parsed.device.unwrap_or(Device::new(0));
+    let device = common_context.get_device();
     let mut segments = vec![];
     let mut code_offset = 0;
     let mut data_offset = device.ram_start;
@@ -62,7 +59,6 @@ pub fn build_pass_1(
 
     Ok(BuildResultPass1 {
         segments,
-        device,
         ram_filling,
         messages: parsed.messages,
     })
@@ -163,7 +159,6 @@ fn pass_1_internal(
 mod builder_tests {
     use super::*;
     use crate::builder::pass0::build_pass_0;
-    use crate::device::Device;
     use crate::directive::Operand;
     use crate::instruction::{operation::Operation, register::Reg8, InstructionOps};
     use crate::parser::parse_str;
@@ -192,7 +187,6 @@ mod builder_tests {
                     t: SegmentType::Code,
                     address: 0,
                 }],
-                device: Some(Device::new(0)),
                 messages: vec![],
             },
             &common_context,
@@ -206,7 +200,6 @@ mod builder_tests {
                     t: SegmentType::Code,
                     address: 0,
                 }],
-                device: Device::new(0),
                 ram_filling: 0,
                 messages: vec![],
             }
@@ -247,7 +240,6 @@ mod builder_tests {
                         address: 0x2,
                     },
                 ],
-                device: Some(Device::new(0)),
                 messages: vec![],
             },
             &common_context,
@@ -268,7 +260,6 @@ mod builder_tests {
                         address: 0x2,
                     }
                 ],
-                device: Device::new(0),
                 ram_filling: 0,
                 messages: vec![],
             }
@@ -307,7 +298,6 @@ mod builder_tests {
                         address: 0x20,
                     }
                 ],
-                device: Device::new(0),
                 ram_filling: 0,
                 messages: vec![],
             }
@@ -351,7 +341,6 @@ mod builder_tests {
                         address: 0,
                     }
                 ],
-                device: Device::new(0),
                 ram_filling: 0,
                 messages: vec![],
             }
@@ -461,7 +450,6 @@ m1:
                     t: SegmentType::Code,
                     address: 0,
                 }],
-                device: Device::new(0),
                 ram_filling: 0,
                 messages: vec![],
             }
@@ -611,7 +599,6 @@ data_q: .dq 0x1, 0x1000000000011000
                         address: 2,
                     }
                 ],
-                device: Device::new(0),
                 ram_filling: 0,
                 messages: vec![],
             }
@@ -643,7 +630,6 @@ data_q: .dq 0x1, 0x1000000000011000
                     t: SegmentType::Data,
                     address: 0x60,
                 },],
-                device: Device::new(0),
                 ram_filling: 3,
                 messages: vec![],
             }

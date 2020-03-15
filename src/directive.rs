@@ -103,7 +103,6 @@ impl Directive {
             current_path,
             include_paths,
             common_context,
-            device,
             segments,
             macros,
             messages,
@@ -211,11 +210,16 @@ impl Directive {
                 if let DirectiveOps::OpList(values) = opts {
                     if let Operand::E(Expr::Ident(value)) = &values[0] {
                         if let Some(device) = DEVICES.get(value.as_str()) {
-                            if let Some(old_device) =
-                                context.device.as_ref().clone().borrow().as_ref()
+                            if let Some(old_device) = context
+                                .common_context
+                                .device
+                                .as_ref()
+                                .clone()
+                                .borrow()
+                                .as_ref()
                             {
                                 if old_device == &Device::new(0) {
-                                    context.device.replace(Some(device.clone()));
+                                    context.common_context.device.replace(Some(device.clone()));
                                 } else {
                                     bail!(
                                         "device redefinition in {}, old: {:?} -> new: {:?}",
@@ -225,7 +229,7 @@ impl Directive {
                                     )
                                 }
                             } else {
-                                context.device.replace(Some(device.clone()));
+                                context.common_context.device.replace(Some(device.clone()));
                             }
                         } else {
                             bail!("unknown device {} in {}", value, point,)
@@ -242,7 +246,6 @@ impl Directive {
                             current_path: PathBuf::from(include),
                             include_paths: include_paths.clone(),
                             common_context: common_context.clone(),
-                            device: device.clone(),
                             segments: segments.clone(),
                             macros: macros.clone(),
                             messages: messages.clone(),
@@ -660,7 +663,6 @@ mod parser_tests {
                     }
                 ],
                 macroses: hashmap! {},
-                device: Some(Device::new(0)),
                 messages: vec![],
             }
         );
@@ -698,7 +700,6 @@ mod parser_tests {
                     }
                 ],
                 macroses: hashmap! {},
-                device: Some(Device::new(0)),
                 messages: vec![],
             }
         );
@@ -736,7 +737,6 @@ mod parser_tests {
                     }
                 ],
                 macroses: hashmap! {},
-                device: Some(Device::new(0)),
                 messages: vec![],
             }
         );
@@ -785,7 +785,6 @@ mod parser_tests {
                     },
                 ],
                 macroses: hashmap! {},
-                device: Some(Device::new(0)),
                 messages: vec![],
             }
         );
@@ -843,7 +842,6 @@ mod parser_tests {
                     address: 0
                 }],
                 macroses: hashmap! {},
-                device: Some(Device::new(0)),
                 messages: vec![],
             }
         );
@@ -897,7 +895,6 @@ mod parser_tests {
                     address: 0
                 }],
                 macroses: hashmap! {},
-                device: Some(Device::new(0)),
                 messages: vec![],
             }
         );
@@ -951,7 +948,6 @@ mod parser_tests {
                     address: 0
                 }],
                 macroses: hashmap! {},
-                device: Some(Device::new(0)),
                 messages: vec![],
             }
         );
@@ -1005,7 +1001,6 @@ mod parser_tests {
                     address: 0
                 }],
                 macroses: hashmap! {},
-                device: Some(Device::new(0)),
                 messages: vec![],
             }
         );
@@ -1059,7 +1054,6 @@ mod parser_tests {
                     address: 0
                 }],
                 macroses: hashmap! {},
-                device: Some(Device::new(0)),
                 messages: vec![],
             }
         );
@@ -1119,7 +1113,6 @@ mod parser_tests {
                     address: 0,
                 }],
                 macroses: hashmap! {},
-                device: Some(Device::new(0)),
                 messages: vec![],
             }
         );
@@ -1167,7 +1160,6 @@ mod parser_tests {
                     address: 0,
                 }],
                 macroses: hashmap! {},
-                device: Some(Device::new(0)),
                 messages: vec![],
             }
         );
@@ -1201,9 +1193,13 @@ mod parser_tests {
                     address: 0
                 }],
                 macroses: hashmap! {},
-                device: Some(DEVICES.get("ATmega48").unwrap().clone()),
                 messages: vec![],
             }
+        );
+
+        assert_eq!(
+            common_context.get_device(),
+            DEVICES.get("ATmega48").unwrap().clone()
         );
 
         let common_context = CommonContext::new();
@@ -1241,7 +1237,6 @@ mod parser_tests {
                     address: 0
                 }],
                 macroses: hashmap! {},
-                device: Some(DEVICES.get("ATmega48").unwrap().clone()),
                 messages: vec![],
             }
         );
@@ -1251,6 +1246,11 @@ mod parser_tests {
             hashmap! {
                 "sreg".to_string() => Expr::Const(0x3f),
             }
+        );
+
+        assert_eq!(
+            common_context.get_device(),
+            DEVICES.get("ATmega48").unwrap().clone()
         );
     }
 
@@ -1284,7 +1284,6 @@ mod parser_tests {
                     address: 0
                 }],
                 macroses: hashmap! {},
-                device: Some(DEVICES.get("ATmega88").unwrap().clone()),
                 messages: vec![],
             }
         );
@@ -1294,6 +1293,11 @@ mod parser_tests {
             hashmap! {
                 "sreg".to_string() => Expr::Const(0x3f),
             }
+        );
+
+        assert_eq!(
+            common_context.get_device(),
+            DEVICES.get("ATmega88").unwrap().clone()
         );
     }
 
@@ -1452,7 +1456,6 @@ mod parser_tests {
                     ],
                     "test2".to_string() => vec![]
                 },
-                device: Some(Device::new(0)),
                 messages: vec![],
             }
         );
@@ -1487,7 +1490,6 @@ mod parser_tests {
                     address: 0
                 }],
                 macroses: hashmap! {},
-                device: Some(Device::new(0)),
                 messages: vec![],
             }
         );
@@ -1520,7 +1522,6 @@ mod parser_tests {
             ParseResult {
                 segments: vec![],
                 macroses: hashmap! {},
-                device: Some(Device::new(0)),
                 messages: vec![
                     "info: test in line: 2".to_string(),
                     "warning: test 2 in line: 3".to_string(),

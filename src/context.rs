@@ -1,3 +1,4 @@
+use crate::device::Device;
 use crate::expr::Expr;
 use crate::instruction::register::Reg8;
 use crate::parser::SegmentType;
@@ -61,6 +62,8 @@ pub struct CommonContext {
     pub sets: Rc<RefCell<HashMap<String, Expr>>>,
     // special
     pub special: Rc<RefCell<HashMap<String, Expr>>>,
+    // device
+    pub device: Rc<RefCell<Option<Device>>>,
 }
 
 impl CommonContext {
@@ -72,7 +75,16 @@ impl CommonContext {
             defs: Rc::new(RefCell::new(hashmap! {})),
             sets: Rc::new(RefCell::new(hashmap! {})),
             special: Rc::new(RefCell::new(hashmap! {})),
+            device: Rc::new(RefCell::new(Some(Device::new(0)))),
         }
+    }
+
+    pub fn get_device(&self) -> Device {
+        self.device
+            .borrow()
+            .as_ref()
+            .unwrap_or(&Device::new(0))
+            .clone()
     }
 }
 
