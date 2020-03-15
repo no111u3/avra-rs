@@ -16,6 +16,7 @@ pub trait Context {
     fn get_def(&self, _name: &String) -> Option<Reg8>;
     fn get_set(&self, _name: &String) -> Option<Expr>;
     fn get_special(&self, _name: &String) -> Option<Expr>;
+    fn get_device(&self) -> Device;
 
     fn set_define(&self, _name: String, _value: Expr) -> Option<Expr>;
     fn set_equ(&self, _name: String, _value: Expr) -> Option<Expr>;
@@ -78,14 +79,6 @@ impl CommonContext {
             device: Rc::new(RefCell::new(Some(Device::new(0)))),
         }
     }
-
-    pub fn get_device(&self) -> Device {
-        self.device
-            .borrow()
-            .as_ref()
-            .unwrap_or(&Device::new(0))
-            .clone()
-    }
 }
 
 impl Context for CommonContext {
@@ -123,6 +116,14 @@ impl Context for CommonContext {
             .borrow()
             .get(&name.to_lowercase())
             .map(|x| x.clone())
+    }
+
+    fn get_device(&self) -> Device {
+        self.device
+            .borrow()
+            .as_ref()
+            .unwrap_or(&Device::new(0))
+            .clone()
     }
 
     fn set_define(&self, name: String, expr: Expr) -> Option<Expr> {

@@ -1,5 +1,7 @@
 use strum_macros::{Display, EnumString};
 
+use crate::context::Context;
+
 /// Status register flags
 #[derive(Clone, Copy, PartialEq, Eq, Debug, EnumString)]
 #[strum(serialize_all = "lowercase")]
@@ -272,7 +274,7 @@ pub struct Info {
 
 impl Operation {
     /// Returns how many words the instruction takes up
-    pub fn info(&self) -> Info {
+    pub fn info(&self, constants: &dyn Context) -> Info {
         match self {
             // Rd, Rr   0000 11rd dddd rrrr
             Operation::Add => Info {
@@ -524,10 +526,18 @@ impl Operation {
                 len: 1,
                 op_code: 0xe000,
             },
-            // Rd, k    1001 000d dddd 0000 + 16k
-            Operation::Lds => Info {
-                len: 2,
-                op_code: 0x9000,
+            Operation::Lds => if constants.get_device().is_avr8l() {
+                // Rd, k    1010 0kkk dddd kkkk
+                Info {
+                    len: 1,
+                    op_code: 0xa000,
+                }
+            } else {
+                // Rd, k    1001 000d dddd 0000 + 16k
+                Info {
+                    len: 2,
+                    op_code: 0x9000,
+                }
             },
             // Rd, -I+  100i 000d dddd ii-+
             Operation::Ld => Info {
@@ -539,10 +549,18 @@ impl Operation {
                 len: 1,
                 op_code: 0x8000,
             },
-            // k, Rr    1001 001d dddd 0000 + 16k
-            Operation::Sts => Info {
-                len: 2,
-                op_code: 0x9200,
+            Operation::Sts => if constants.get_device().is_avr8l() {
+                // Rd, k    1010 1kkk dddd kkkk
+                Info {
+                    len: 1,
+                    op_code: 0xa800,
+                }
+            } else {
+                // k, Rr    1001 001d dddd 0000 + 16k
+                Info {
+                    len: 2,
+                    op_code: 0x9200,
+                }
             },
             // -I+, Rr  100i 001d dddd ii-+
             Operation::St => Info {

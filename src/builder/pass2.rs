@@ -610,4 +610,38 @@ counter:
             }
         );
     }
+
+    #[test]
+    fn avr8l_lds_sts() {
+        let common_context = CommonContext::new();
+        let parse_result = parse_str(
+            "
+        .device ATtiny20
+        .dseg
+counter: .byte 1
+        .cseg
+        lds r18, counter
+        inc r18
+        sts counter, r18
+        ",
+            &common_context,
+        );
+        let post_parse_result = build_pass_0(parse_result.unwrap(), &common_context);
+
+        let build_result = build_pass_2(
+            build_pass_1(post_parse_result.unwrap(), &common_context).unwrap(),
+            &common_context,
+        );
+        assert_eq!(
+            build_result.unwrap(),
+            BuildResultPass2 {
+                code_start_address: 0x0,
+                code: vec![0x20, 0xa1, 0x23, 0x95, 0x20, 0xa9],
+                eeprom_start_address: 0x0,
+                eeprom: vec![],
+                ram_filling: 1,
+                messages: vec![],
+            }
+        );
+    }
 }

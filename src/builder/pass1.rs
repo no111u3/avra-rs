@@ -91,7 +91,7 @@ fn pass_1_internal(
             }
             Item::Instruction(op, _) => match segment.t {
                 SegmentType::Code => {
-                    cur_address += op.info().len;
+                    cur_address += op.info(common_context).len;
                     out_items.push((*line, item.clone()));
                 }
                 _ => bail!(

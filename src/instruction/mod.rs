@@ -98,7 +98,7 @@ pub fn process(
 ) -> Result<Vec<u8>, Error> {
     let mut finalized_opcode = vec![];
 
-    let mut opcode = op.info().op_code;
+    let mut opcode = op.info(constants).op_code;
     let mut opcode_2part = 0u16;
     let mut long_opcode = false;
 
@@ -278,13 +278,23 @@ pub fn process(
             opcode |= r.number() << 4;
 
             let k = k.run(constants)?;
-            if k < 0 || k > 65535 {
-                bail!("Address out of range (0 <= k <= 65535)");
+
+            if constants.get_device().is_avr8l() {
+                if k < 40 || k > 0xbf {
+                    bail!("Address out of range (0x40 <= k <= 0xbf)");
+                }
+
+                let k = k as u16;
+                opcode |= (k & 0x40) << 2 | (k & 0x30) << 5 | (k & 0x0f) ;
+            } else {
+                if k < 0 || k > 65535 {
+                    bail!("Address out of range (0 <= k <= 65535)");
+                }
+
+                opcode_2part = (k as u16) & 0xffff;
+
+                long_opcode = true;
             }
-
-            opcode_2part = (k as u16) & 0xffff;
-
-            long_opcode = true;
         }
         Operation::Ld | Operation::St | Operation::Ldd | Operation::Std => {
             let (r, i) = match op {

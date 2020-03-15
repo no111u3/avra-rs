@@ -102,6 +102,8 @@ impl Device {
         }
     }
 
+    pub fn is_avr8l(&self) -> bool { self.disable_opts.contains(&Avr8l) }
+
     pub fn allow(&self, o: DisabledOptions) -> bool {
         !self.disable_opts.contains(&o)
     }

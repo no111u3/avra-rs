@@ -13,7 +13,7 @@ important differences, for example, it is tested as much as possible.
 
 * AVRA-RS contains full implementation of assembler opcodes and directives. It does not, however,
   support full command-line options of AVRA.
-* AVRA-RS supports ATmega and ATtiny MCUs, but without correct lds/sts support on ATtiny.
+* AVRA-RS supports ATmega and ATtiny MCUs.
 
 ## Build and Install
 
