@@ -7,7 +7,7 @@ pub mod pass2;
 use crate::builder::pass0::build_pass_0 as pass0;
 use crate::builder::pass1::build_pass_1 as pass1;
 use crate::builder::pass2::build_pass_2 as pass2;
-use crate::context::{Context, CommonContext};
+use crate::context::{CommonContext, Context};
 use crate::parser::{parse_file, parse_str, ParseResult, Paths};
 
 use failure::{bail, Error};

@@ -285,7 +285,7 @@ pub fn process(
                 }
 
                 let k = k as u16;
-                opcode |= (k & 0x40) << 2 | (k & 0x30) << 5 | (k & 0x0f) ;
+                opcode |= (k & 0x40) << 2 | (k & 0x30) << 5 | (k & 0x0f);
             } else {
                 if k < 0 || k > 65535 {
                     bail!("Address out of range (0 <= k <= 65535)");
