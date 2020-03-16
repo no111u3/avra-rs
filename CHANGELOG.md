@@ -1,3 +1,14 @@
+## Release 0.3 (2020-03-16)
+
+Minor updates, code refactoring
+
+- Add Dd/Dq data directives support
+- Add Message/Warning/Error user notification directives
+- Add CSegSize directive support
+- Add Pragma directive parse support
+- Add check, display and notify user for RAM/Flash/EEPROM capacity and filling
+- Fix Lds/Sts incsturction opcode generation for ATtiny (avr8l core subfamily)
+
 ## Release 0.2 (2020-03-09)
 
 First works release of AVRA-RS
