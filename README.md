@@ -26,6 +26,8 @@ To compile source file you need to run `avra-rs` with argument `-s` for describe
 source and optionally you can provide output path by `-o`. for provide another place of
 eeprom store you can use `-e` key.
 
+For more verbose output you can use `-v` key.
+
 Other options aren't supported.
 Detail information of assembler will be added in near future.
 
