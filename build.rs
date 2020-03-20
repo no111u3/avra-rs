@@ -11,8 +11,8 @@ fn get_files(path: &PathBuf) -> BTreeSet<PathBuf> {
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_file())
         .map(|e| {
+            let parent = path;
             let path = e.path().to_path_buf();
-            let parent = path.parent().unwrap();
             path.strip_prefix(parent).unwrap().to_path_buf()
         })
         .collect()
@@ -54,8 +54,15 @@ fn main() {
         let mut dst = path.clone();
         dst.push(item);
 
+        if let Err(e) = create_dir_for_path(&dst.parent().unwrap().to_path_buf()) {
+            println!(
+                "cargo:warning=Failed to create directory for {:?}, {:?}",
+                dst, e
+            );
+        }
+
         if let Err(e) = fs::copy(src, dst) {
-            println!("cargo:warning={:?}", e);
+            println!("cargo:warning=Copy failed with error: {:?}", e);
         }
     }
 }
