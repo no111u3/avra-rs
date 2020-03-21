@@ -11,9 +11,9 @@
 
 .macro clear_ram_regs
 
-.if @0 <= SRAM_START
+.if @0 < SRAM_START
 	.error "RAM clear area must be greater than zero address of RAM"
-.elif @1 >= SRAM_END
+.elif @1 > SRAM_START + SRAM_SIZE
 	.error "RAM clear area must be lower than end address of RAM"
 .else
 	; Clear RAM
