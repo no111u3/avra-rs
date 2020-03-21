@@ -468,4 +468,49 @@ mod builder_tests {
             }
         );
     }
+
+    #[test]
+    fn check_for_conditional_macro() {
+        let common_context = CommonContext::new();
+        let parse_result = parse_str(
+            "
+.macro test_one
+    .ifdef last_one
+    push r0
+    .endif
+    ret
+.endm
+    .define last_one
+    test_one
+        ",
+            &common_context,
+        );
+        let build_result = build_pass_0(parse_result.unwrap(), &common_context);
+        assert_eq!(
+            build_result.unwrap(),
+            BuildResultPass0 {
+                segments: vec![Segment {
+                    items: vec![
+                        (
+                            CodePoint {
+                                line_num: 4,
+                                num: 2
+                            },
+                            Item::Instruction(Operation::Push, vec![InstructionOps::R8(Reg8::R0),])
+                        ),
+                        (
+                            CodePoint {
+                                line_num: 6,
+                                num: 2
+                            },
+                            Item::Instruction(Operation::Ret, vec![])
+                        ),
+                    ],
+                    t: SegmentType::Code,
+                    address: 0x0,
+                }],
+                messages: vec![],
+            }
+        );
+    }
 }
