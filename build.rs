@@ -2,10 +2,11 @@ use std::collections::BTreeSet;
 use std::fs;
 use std::path::PathBuf;
 
+use checksums::{hash_file, Algorithm};
 use dirs::config_dir;
 use walkdir::WalkDir;
 
-fn get_files(path: &PathBuf) -> BTreeSet<PathBuf> {
+fn get_files(path: &PathBuf) -> BTreeSet<(PathBuf, String)> {
     WalkDir::new(path)
         .into_iter()
         .filter_map(|e| e.ok())
@@ -13,7 +14,8 @@ fn get_files(path: &PathBuf) -> BTreeSet<PathBuf> {
         .map(|e| {
             let parent = path;
             let path = e.path().to_path_buf();
-            path.strip_prefix(parent).unwrap().to_path_buf()
+            let hash = hash_file(&path, Algorithm::MD5);
+            (path.strip_prefix(parent).unwrap().to_path_buf(), hash)
         })
         .collect()
 }
@@ -46,13 +48,13 @@ fn main() {
 
     let target = get_files(&path);
 
-    let for_copy = our.difference(&target);
+    let for_copy = our.difference(&target).map(|item| item.0.clone());
 
     for item in for_copy {
         let mut src = PathBuf::from("includes");
-        src.push(item);
+        src.push(item.clone());
         let mut dst = path.clone();
-        dst.push(item);
+        dst.push(item.clone());
 
         if let Err(e) = create_dir_for_path(&dst.parent().unwrap().to_path_buf()) {
             println!(

@@ -33,5 +33,6 @@ walkdir = "2.3"
 dirs = "2.0"
 
 [build-dependencies]
+checksums = "0.6"
 walkdir = "2.3"
 dirs = "2.0"
