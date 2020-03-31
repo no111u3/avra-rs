@@ -12,7 +12,7 @@
 	rjmp INT0_handler
 .else
 .ifdef reti_dummy_use
-reti
+	reti
 .endif
 .endif
 
@@ -21,7 +21,7 @@ reti
 	rjmp INT1_handler
 .else
 .ifdef reti_dummy_use
-reti
+	reti
 .endif
 .endif
 
@@ -30,7 +30,7 @@ reti
 	rjmp PCI0_handler
 .else
 .ifdef reti_dummy_use
-reti
+	reti
 .endif
 .endif
 
@@ -39,7 +39,7 @@ reti
 	rjmp PCI1_handler
 .else
 .ifdef reti_dummy_use
-reti
+	reti
 .endif
 .endif
 
@@ -48,7 +48,7 @@ reti
 	rjmp PCI2_handler
 .else
 .ifdef reti_dummy_use
-reti
+	reti
 .endif
 .endif
 
@@ -57,7 +57,7 @@ reti
 	rjmp WDT_handler
 .else
 .ifdef reti_dummy_use
-reti
+	reti
 .endif
 .endif
 
@@ -66,7 +66,7 @@ reti
 	rjmp OC2A_handler
 .else
 .ifdef reti_dummy_use
-reti
+	reti
 .endif
 .endif
 
@@ -75,7 +75,7 @@ reti
 	rjmp OC2B_handler
 .else
 .ifdef reti_dummy_use
-reti
+	reti
 .endif
 .endif
 
@@ -84,7 +84,7 @@ reti
 	rjmp OVF2_handler
 .else
 .ifdef reti_dummy_use
-reti
+	reti
 .endif
 .endif
 
@@ -93,7 +93,7 @@ reti
 	rjmp ICP1_handler
 .else
 .ifdef reti_dummy_use
-reti
+	reti
 .endif
 .endif
 
@@ -102,7 +102,7 @@ reti
 	rjmp OC1A_handler
 .else
 .ifdef reti_dummy_use
-reti
+	reti
 .endif
 .endif
 
@@ -111,7 +111,7 @@ reti
 	rjmp OC1B_handler
 .else
 .ifdef reti_dummy_use
-reti
+	reti
 .endif
 .endif
 
@@ -120,7 +120,7 @@ reti
 	rjmp OVF1_handler
 .else
 .ifdef reti_dummy_use
-reti
+	reti
 .endif
 .endif
 
@@ -129,7 +129,7 @@ reti
 	rjmp OC0A_handler
 .else
 .ifdef reti_dummy_use
-reti
+	reti
 .endif
 .endif
 
@@ -138,7 +138,7 @@ reti
 	rjmp OC0B_handler
 .else
 .ifdef reti_dummy_use
-reti
+	reti
 .endif
 .endif
 
@@ -147,7 +147,7 @@ reti
 	rjmp OVF0_handler
 .else
 .ifdef reti_dummy_use
-reti
+	reti
 .endif
 .endif
 
@@ -156,7 +156,7 @@ reti
 	rjmp SPI_handler
 .else
 .ifdef reti_dummy_use
-reti
+	reti
 .endif
 .endif
 
@@ -165,7 +165,7 @@ reti
 	rjmp URXC_handler
 .else
 .ifdef reti_dummy_use
-reti
+	reti
 .endif
 .endif
 
@@ -174,7 +174,7 @@ reti
 	rjmp UDRE_handler
 .else
 .ifdef reti_dummy_use
-reti
+	reti
 .endif
 .endif
 
@@ -183,7 +183,7 @@ reti
 	rjmp UTXC_handler
 .else
 .ifdef reti_dummy_use
-reti
+	reti
 .endif
 .endif
 
@@ -192,7 +192,7 @@ reti
 	rjmp ADCC_handler
 .else
 .ifdef reti_dummy_use
-reti
+	reti
 .endif
 .endif
 
@@ -201,7 +201,7 @@ reti
 	rjmp ERDY_handler
 .else
 .ifdef reti_dummy_use
-reti
+	reti
 .endif
 .endif
 
@@ -210,7 +210,7 @@ reti
 	rjmp ACI_handler
 .else
 .ifdef reti_dummy_use
-reti
+	reti
 .endif
 .endif
 
@@ -219,7 +219,7 @@ reti
 	rjmp TWI_handler
 .else
 .ifdef reti_dummy_use
-reti
+	reti
 .endif
 .endif
 
@@ -228,7 +228,7 @@ reti
 	rjmp SPMR_handler
 .else
 .ifdef reti_dummy_use
-reti
+	reti
 .endif
 .endif
 
