@@ -86,7 +86,7 @@ pub enum Directive {
     Pragma,
 
     /// For extend and macross support
-    #[strum(disabled = "true")]
+    #[strum(disabled)]
     Custom(String),
 }
 
