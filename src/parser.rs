@@ -1,19 +1,23 @@
 //! Contains content parser of AVRA-rs
 
-use std::cell::RefCell;
-use std::collections::{BTreeSet, HashMap};
-use std::fs::File;
-use std::io::Read;
-use std::iter::Iterator;
-use std::path::PathBuf;
-use std::rc::Rc;
-use std::{env, fmt};
+use std::{
+    cell::RefCell,
+    collections::{BTreeSet, HashMap},
+    env, fmt,
+    fs::File,
+    io::Read,
+    iter::Iterator,
+    path::PathBuf,
+    rc::Rc,
+};
 
-use crate::context::CommonContext;
-use crate::directive::{Directive, Operand};
-use crate::document::{document, Document};
-use crate::expr::Expr;
-use crate::instruction::{operation::Operation, InstructionOps};
+use crate::{
+    context::CommonContext,
+    directive::{Directive, Operand},
+    document::{document, Document},
+    expr::Expr,
+    instruction::{operation::Operation, InstructionOps},
+};
 
 use failure::{bail, Error};
 use maplit::{btreeset, hashmap};
@@ -423,11 +427,13 @@ pub fn parse_iter<'a>(
 #[cfg(test)]
 mod parser_tests {
     use super::*;
-    use crate::expr::{BinaryExpr, BinaryOperator, UnaryExpr, UnaryOperator};
-    use crate::instruction::{
-        operation::{BranchT, SFlags},
-        register::{Reg16, Reg8},
-        IndexOps, InstructionOps,
+    use crate::{
+        expr::{BinaryExpr, BinaryOperator, UnaryExpr, UnaryOperator},
+        instruction::{
+            operation::{BranchT, SFlags},
+            register::{Reg16, Reg8},
+            IndexOps, InstructionOps,
+        },
     };
 
     use maplit::hashmap;

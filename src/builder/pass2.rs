@@ -1,11 +1,13 @@
 //! Contains second pass builder of AVRA-rs
 
-use crate::builder::pass1::BuildResultPass1;
-use crate::context::{CommonContext, Context};
-use crate::directive::GetData;
-use crate::expr::Expr;
-use crate::instruction::{process, register::Reg8};
-use crate::parser::{DataDefine, Item, Segment, SegmentType};
+use crate::{
+    builder::pass1::BuildResultPass1,
+    context::{CommonContext, Context},
+    directive::GetData,
+    expr::Expr,
+    instruction::{process, register::Reg8},
+    parser::{DataDefine, Item, Segment, SegmentType},
+};
 
 use std::str::FromStr;
 
@@ -162,9 +164,13 @@ fn pass_2_internal(segment: &Segment, common_context: &CommonContext) -> Result<
 #[cfg(test)]
 mod builder_tests {
     use super::*;
-    use crate::builder::pass0::{build_pass_0, BuildResultPass0};
-    use crate::builder::pass1::build_pass_1;
-    use crate::parser::parse_str;
+    use crate::{
+        builder::{
+            pass0::{build_pass_0, BuildResultPass0},
+            pass1::build_pass_1,
+        },
+        parser::parse_str,
+    };
 
     #[test]
     fn check_empty() {

@@ -430,9 +430,11 @@ pub fn process(
 #[cfg(test)]
 mod parser_tests {
     use super::*;
-    use crate::document::{document, Document};
-    use crate::expr::{BinaryExpr, BinaryOperator, Expr};
-    use crate::instruction::operation::{BranchT, Operation, SFlags};
+    use crate::{
+        document::{document, Document},
+        expr::{BinaryExpr, BinaryOperator, Expr},
+        instruction::operation::{BranchT, Operation, SFlags},
+    };
 
     #[test]
     fn operation_test() {

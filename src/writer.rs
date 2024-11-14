@@ -1,11 +1,9 @@
 //! Contains hex writer of AVRA-rs
 
-use {
-    crate::builder::BuildResult,
-    failure::Error,
-    ihex::Record,
-    std::{fs::File, io::Write, path::PathBuf},
-};
+use crate::builder::BuildResult;
+use failure::Error;
+use ihex::Record;
+use std::{fs::File, io::Write, path::PathBuf};
 
 pub struct GenerateResult {
     code: String,

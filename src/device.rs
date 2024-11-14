@@ -1,9 +1,10 @@
 //! Contains device specific options of AVRA-rs
 
-use lazy_static::lazy_static;
 use maplit::{btreeset, hashmap};
-
-use std::collections::{BTreeSet, HashMap};
+use std::{
+    collections::{BTreeSet, HashMap},
+    sync::LazyLock,
+};
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum DisabledOptions {

@@ -2,10 +2,13 @@
 
 use strum_macros::{Display, EnumString};
 
-use crate::device::{Device, DEVICES};
-use crate::expr::Expr;
-use crate::parser::{
-    parse_file_internal, CodePoint, DataDefine, Item, NextItem, ParseContext, Segment, SegmentType,
+use crate::{
+    device::{Device, DEVICES},
+    expr::Expr,
+    parser::{
+        parse_file_internal, CodePoint, DataDefine, Item, NextItem, ParseContext, Segment,
+        SegmentType,
+    },
 };
 
 use crate::context::Context;
@@ -520,16 +523,18 @@ impl GetData for Vec<Operand> {
 mod parser_tests {
     use super::*;
 
-    use crate::device::DEVICES;
-    use crate::directive::Operand;
-    use crate::document::{document, Document};
-    use crate::expr::{BinaryExpr, BinaryOperator};
-    use crate::instruction::{
-        operation::Operation,
-        register::{Reg16, Reg8},
-        IndexOps, InstructionOps,
+    use crate::{
+        device::DEVICES,
+        directive::Operand,
+        document::{document, Document},
+        expr::{BinaryExpr, BinaryOperator},
+        instruction::{
+            operation::Operation,
+            register::{Reg16, Reg8},
+            IndexOps, InstructionOps,
+        },
+        parser::{parse_file, parse_str, ParseResult},
     };
-    use crate::parser::{parse_file, parse_str, ParseResult};
 
     use crate::context::CommonContext;
     use maplit::{btreeset, hashmap};

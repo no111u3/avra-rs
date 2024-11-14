@@ -1,14 +1,12 @@
 //! Contains zero pass builder of AVRA-rs
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::path::PathBuf;
-use std::rc::Rc;
-use std::string::ToString;
+use std::{cell::RefCell, collections::HashMap, path::PathBuf, rc::Rc, string::ToString};
 
-use crate::context::CommonContext;
-use crate::instruction::operation::Operation;
-use crate::parser::{
-    parse_iter, CodePoint, Item, Macro, ParseContext, ParseResult, Paths, Segment, SegmentType,
+use crate::{
+    context::CommonContext,
+    instruction::operation::Operation,
+    parser::{
+        parse_iter, CodePoint, Item, Macro, ParseContext, ParseResult, Paths, Segment, SegmentType,
+    },
 };
 
 use crate::instruction::InstructionOps;
@@ -214,9 +212,11 @@ fn macro_expand(
 #[cfg(test)]
 mod builder_tests {
     use super::*;
-    use crate::expr::Expr;
-    use crate::instruction::{register::Reg8, InstructionOps};
-    use crate::parser::parse_str;
+    use crate::{
+        expr::Expr,
+        instruction::{register::Reg8, InstructionOps},
+        parser::parse_str,
+    };
 
     #[test]
     fn check_non_argument_macro() {
