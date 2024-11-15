@@ -2,7 +2,7 @@
 name = "avra-rs"
 version = "0.4.0"
 authors = ["Boris Vinogradov <no111u3@gmail.com>"]
-description = "Assembler for Microchip(similar to Atmel) AVR microcontroller family"
+description = "Assembler for Microchip AVR Microcontroller family (similar to Atmel)"
 edition = "2021"
 license = "Apache-2.0"
 keywords = ["avr", "assembly", "assembler", "asm"]
