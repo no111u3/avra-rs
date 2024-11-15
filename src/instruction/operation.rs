@@ -8,7 +8,7 @@ use crate::context::Context;
 pub enum SFlags {
     /// Carry
     C,
-    /// Zero    
+    /// Zero
     Z,
     /// Negative
     N,
@@ -175,7 +175,7 @@ pub enum Operation {
     /// Compare with immediate
     Cpi,
     /// Conditinal branch
-    #[strum(disabled = "true")]
+    #[strum(disabled)]
     Br(BranchT),
     /// Skip if bit in I/O register is cleared
     Sbic,
@@ -245,10 +245,10 @@ pub enum Operation {
     /// Bit load from the T flag in SREG to a bit in register
     Bld,
     /// Set flag in status register
-    #[strum(disabled = "true")]
+    #[strum(disabled)]
     Se(SFlags),
     /// Clear flag in status register
-    #[strum(disabled = "true")]
+    #[strum(disabled)]
     Cl(SFlags),
 
     /// Mcu control instructions
@@ -262,7 +262,7 @@ pub enum Operation {
     Wdr,
 
     /// For extend and macross support
-    #[strum(disabled = "true")]
+    #[strum(disabled)]
     Custom(String),
 }
 

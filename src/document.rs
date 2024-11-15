@@ -4,12 +4,14 @@ use std::str::FromStr;
 
 use peg::parser;
 
-use crate::directive::{Directive, DirectiveOps, Operand};
-use crate::expr::{BinaryExpr, BinaryOperator, Expr, UnaryExpr, UnaryOperator};
-use crate::instruction::{
-    operation::{BranchT, Operation, SFlags},
-    register::{Reg16, Reg8},
-    IndexOps, InstructionOps,
+use crate::{
+    directive::{Directive, DirectiveOps, Operand},
+    expr::{BinaryExpr, BinaryOperator, Expr, UnaryExpr, UnaryOperator},
+    instruction::{
+        operation::{BranchT, Operation, SFlags},
+        register::{Reg16, Reg8},
+        IndexOps, InstructionOps,
+    },
 };
 
 #[derive(Clone, PartialEq, Eq, Debug)]

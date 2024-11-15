@@ -22,14 +22,18 @@ To build the `avra-rs` you can use `cargo build` and `cargo install`, or you can
 
 ## Usage
 
-To compile source file you need to run `avra-rs` with argument `-s` for describe path to
-source and optionally you can provide output path by `-o`. for provide another place of
-eeprom store you can use `-e` key.
+To compile source file you need to run `avra-rs` with argument `-s` with path to the
+source and optionally you can provide output path with `-o`. To provide another place in
+EEPROM store you can use `-e`.
 
-For more verbose output you can use `-v` key.
+For more verbose output you can use `-v`.
 
 Other options aren't supported.
 Detail information of assembler will be added in near future.
+
+## MSRV
+
+`cargo msrv` puts it at 1.80.1.
 
 ## Change log
 

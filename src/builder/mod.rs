@@ -4,11 +4,13 @@ pub mod pass0;
 pub mod pass1;
 pub mod pass2;
 
-use crate::builder::pass0::build_pass_0 as pass0;
-use crate::builder::pass1::build_pass_1 as pass1;
-use crate::builder::pass2::build_pass_2 as pass2;
-use crate::context::{CommonContext, Context};
-use crate::parser::{parse_file, parse_str, ParseResult, Paths};
+use crate::{
+    builder::{
+        pass0::build_pass_0 as pass0, pass1::build_pass_1 as pass1, pass2::build_pass_2 as pass2,
+    },
+    context::{CommonContext, Context},
+    parser::{parse_file, parse_str, ParseResult, Paths},
+};
 
 use failure::{bail, Error};
 use std::path::PathBuf;

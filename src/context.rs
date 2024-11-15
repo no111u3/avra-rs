@@ -1,11 +1,6 @@
-use crate::device::Device;
-use crate::expr::Expr;
-use crate::instruction::register::Reg8;
-use crate::parser::SegmentType;
+use crate::{device::Device, expr::Expr, instruction::register::Reg8, parser::SegmentType};
 
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::rc::Rc;
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use maplit::hashmap;
 

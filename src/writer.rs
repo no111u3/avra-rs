@@ -1,13 +1,9 @@
 //! Contains hex writer of AVRA-rs
 
 use crate::builder::BuildResult;
-
 use failure::Error;
-use ihex::{record::Record, writer};
-
-use std::fs::File;
-use std::io::Write;
-use std::path::PathBuf;
+use ihex::Record;
+use std::{fs::File, io::Write, path::PathBuf};
 
 pub struct GenerateResult {
     code: String,
@@ -28,7 +24,7 @@ fn generate_hex_from_segment(segment: &[u8]) -> Result<String, Error> {
     }
     records.push(Record::EndOfFile);
 
-    let hex = writer::create_object_file_representation(&records)?;
+    let hex = ihex::create_object_file_representation(&records)?;
 
     Ok(hex)
 }
@@ -76,7 +72,7 @@ mod writer_tests {
         })
         .unwrap();
 
-        assert_eq!(result.code, ":00000001FF".to_string());
+        assert_eq!(result.code, ":00000001FF\n".to_string());
     }
 
     #[test]
@@ -104,7 +100,7 @@ mod writer_tests {
 :100000000F92102D1F5F0AF4FCCF1F90EAE0F0E082
 :1000100005910BC00F1A48656C6C6F2C20576F72DE
 :0C0020006C64420044FF42004EDA22E112
-:00000001FF"
+:00000001FF\n"
                 .to_string()
         );
     }

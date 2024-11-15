@@ -1,6 +1,4 @@
-use std::collections::BTreeSet;
-use std::fs;
-use std::path::PathBuf;
+use std::{collections::BTreeSet, fs, path::PathBuf};
 
 use checksums::{hash_file, Algorithm};
 use dirs::config_dir;

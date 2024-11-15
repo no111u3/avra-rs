@@ -1,10 +1,12 @@
 //! Contains first pass builder of AVRA-rs
 
-use crate::builder::pass0::BuildResultPass0;
-use crate::context::{CommonContext, Context};
-use crate::directive::{GetData, Operand};
-use crate::expr::Expr;
-use crate::parser::{CodePoint, DataDefine, Item, Segment, SegmentType};
+use crate::{
+    builder::pass0::BuildResultPass0,
+    context::{CommonContext, Context},
+    directive::{GetData, Operand},
+    expr::Expr,
+    parser::{CodePoint, DataDefine, Item, Segment, SegmentType},
+};
 
 use failure::{bail, Error};
 
@@ -158,10 +160,12 @@ fn pass_1_internal(
 #[cfg(test)]
 mod builder_tests {
     use super::*;
-    use crate::builder::pass0::build_pass_0;
-    use crate::directive::Operand;
-    use crate::instruction::{operation::Operation, register::Reg8, InstructionOps};
-    use crate::parser::parse_str;
+    use crate::{
+        builder::pass0::build_pass_0,
+        directive::Operand,
+        instruction::{operation::Operation, register::Reg8, InstructionOps},
+        parser::parse_str,
+    };
     use maplit::hashmap;
 
     #[test]
